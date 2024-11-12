@@ -4,8 +4,8 @@
   <name>pcl</name>
   <version>0.0.0</version>
   <description>Transform and visalize the point cloud using PCL</description>
-  <maintainer email="hpawar@wpi.edu">raj</maintainer>
-  <license>TODO: License declaration</license>
+  <maintainer email="macaleca@wpi.edu">Mark Caleca</maintainer>
+  <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
