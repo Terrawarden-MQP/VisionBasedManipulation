@@ -12,6 +12,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(pcl_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -28,8 +29,12 @@ endif()
 add_executable(extract_cluster src/extract_cluster.cpp)
 ament_target_dependencies(extract_cluster rclcpp sensor_msgs geometry_msgs pcl_conversions pcl_msgs)
 
+add_executable(optimal_grasp src/optimal_grasp.cpp)
+ament_target_dependencies(optimal_grasp rclcpp sensor_msgs geometry_msgs pcl_conversions pcl_msgs visualization_msgs)
+
 install(TARGETS
   extract_cluster
+  optimal_grasp
   DESTINATION lib/${PROJECT_NAME})
 
 ament_package()
