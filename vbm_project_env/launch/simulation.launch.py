@@ -22,7 +22,7 @@ def generate_launch_description():
     )
     
     # launch rviz2
-    rviz_config_dir = os.path.join(get_package_share_directory('vbm_project_env'), 'rviz', 'camera.rviz')
+    rviz_config_dir = os.path.join(get_package_share_directory('vbm_project_env'), 'rviz', 'vbm.rviz')
     rviz_node = Node(
         package='rviz2',
         executable='rviz2',
