@@ -15,6 +15,7 @@ https://medium.com/@pacogarcia3/calculate-x-y-z-real-world-coordinates-from-imag
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/msg/camera_info.hpp>
 #include <geometry_msgs/msg/point.hpp>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_types.h>
@@ -23,6 +24,13 @@ https://medium.com/@pacogarcia3/calculate-x-y-z-real-world-coordinates-from-imag
 #include <pcl/segmentation/extract_clusters.h>
 #include <pcl/filters/filter.h>
 #include <vector>
+#include <pcl/filters/statistical_outlier_removal.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/filters/crop_box.h>
+#include <Eigen/Core>
 
 class PointCloudClusterDetector : public rclcpp::Node {
 public:
@@ -34,14 +42,26 @@ public:
             "/target_2d_coords", 10, std::bind(&PointCloudClusterDetector::coord_callback, this, std::placeholders::_1));
 
         cluster_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/detected_cluster", 10);
+
+        camera_info_subscription_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
+            "/realsense/camera_info", 10, 
+            [this](const sensor_msgs::msg::CameraInfo::SharedPtr msg) {
+                RCLCPP_INFO(this->get_logger(), "Camera RGB image width: %d, height: %d", msg->width, msg->height);
+                image_width_ = msg->width;
+                image_height_ = msg->height;
+                // Unsubscribe after receiving the data once
+                camera_info_subscription_.reset();
+            });
     }
 
 private:
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_sub_;
     rclcpp::Subscription<geometry_msgs::msg::Point>::SharedPtr coord_sub_;
+    rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_subscription_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cluster_pub_;
     sensor_msgs::msg::PointCloud2::SharedPtr pointcloud_data_;
     std::pair<int, int> latest_2d_point_;
+    int image_width_, image_height_;
 
     void pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
         RCLCPP_INFO(this->get_logger(), "Point cloud received!");
@@ -64,9 +84,8 @@ private:
         int v = latest_2d_point_.second;
 
         // Get dimensions of the image
-        int width = 640; // pointcloud_data_->width;
-        int height = 480; // pointcloud_data_->height;
-        // TODO get from topic
+        int width = image_width_; 
+        int height = image_height_; 
 
         // Calculate index within point cloud array
         int index = v * width + u;
@@ -89,15 +108,66 @@ private:
 
         RCLCPP_INFO(this->get_logger(), "Converted 3D Point: (%.3f, %.3f, %.3f)", target_point.x, target_point.y, target_point.z);
 
+        // Filter cloud
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_processed(new pcl::PointCloud<pcl::PointXYZ>);
+
+        // Crop cloud to region around point of interest
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_crop(new pcl::PointCloud<pcl::PointXYZ>());
+        pcl::CropBox<pcl::PointXYZ> crop;
+        crop.setInputCloud(cloud);
+        float radius = 0.2; // meters
+        crop.setMin(Eigen::Vector4f(target_point.x - radius, target_point.y - radius, target_point.z - radius, 0));
+        crop.setMax(Eigen::Vector4f(target_point.x + radius, target_point.y + radius, target_point.z + radius, 0));
+        crop.filter(*cloud_crop);
+        // RCLCPP_INFO(this->get_logger(), "Crop box found with %lu points with size %f", cloud_crop->points.size(),(1.5-(count*0.1)));
+
+        // Remove noise using a Statistical Outlier Removal filter
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_sor(new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
+        sor.setInputCloud(cloud_crop);
+        sor.setMeanK(50);  // Number of neighbors to analyze for each point TODO
+        sor.setStddevMulThresh(1.0);  // Standard deviation multiplier TODO
+        sor.filter(*cloud_sor);
+
+        // Downsample point cloud using VoxelGrid filter
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_voxel(new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::VoxelGrid<pcl::PointXYZ> vg;
+        vg.setInputCloud(cloud_sor);
+        vg.setLeafSize(0.01f, 0.01f, 0.01f);  // Adjust for resolution TODO
+        vg.filter(*cloud_voxel);
+
+        // Remove ground (plane segmentation)
+        pcl::SACSegmentation<pcl::PointXYZ> seg;
+        pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+        pcl::ModelCoefficients::Ptr coeff (new pcl::ModelCoefficients);
+        seg.setOptimizeCoefficients (true);
+        seg.setModelType (pcl::SACMODEL_PLANE);
+        seg.setMethodType (pcl::SAC_RANSAC);
+        seg.setMaxIterations (1000); // TODO make params if needed
+        seg.setDistanceThreshold (0.01);
+        // Segment the largest planar component from the cropped cloud
+        seg.setInputCloud (cloud_voxel);
+        seg.segment (*inliers, *coeff);
+        // coefficients = coeff; // Store plane coefficients if desired
+        if (inliers->indices.size () == 0)
+        {
+            RCLCPP_WARN(this->get_logger(), "Failed to estimate planar model");
+        }
+        pcl::ExtractIndices<pcl::PointXYZ> extract;
+        extract.setInputCloud (cloud_voxel);
+        extract.setIndices(inliers);
+        extract.setNegative (true); // false = return plane
+        extract.filter (*cloud_processed);
+
         // Find the object cluster containing this point
-        auto cluster = find_object_cluster(cloud, target_point);
+        auto cluster = find_object_cluster(cloud_processed, target_point);
         if (cluster) {
             RCLCPP_INFO(this->get_logger(), "Cluster found with %lu points", cluster->points.size());
             sensor_msgs::msg::PointCloud2 cluster_msg;
             pcl::toROSMsg(*cluster, cluster_msg);
             cluster_msg.header.frame_id = "camera_link";  // TODO check
             cluster_msg.header.stamp = this->now();
-            cluster_pub_->publish(cluster_msg);
+            cluster_pub_->publish(cluster_msg); 
         } else {
             RCLCPP_INFO(this->get_logger(), "No cluster :/");
         }
