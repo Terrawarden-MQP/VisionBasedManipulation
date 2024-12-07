@@ -3,7 +3,7 @@
 #include <pcl/point_types.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl_conversions/pcl_conversions.h>
-#include <pcl/filters/voxel_grid.h>
+// #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/filter.h>
 #include <pcl/search/kdtree.h>
 // #include <pcl/common/centroid.h>
@@ -43,27 +43,15 @@ private:
             return;
         }
 
-        // Downsample cloud
-        pcl::VoxelGrid<pcl::PointXYZ> voxel_filter;
-        voxel_filter.setInputCloud(cloud);
-        voxel_filter.setLeafSize(0.05f, 0.05f, 0.05f); // TODO tune?
-        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>());
-        voxel_filter.filter(*cloud_filtered);
-
-        if (cloud_filtered->points.empty()) {
-            RCLCPP_WARN(this->get_logger(), "Filtered point cloud is empty!");
-            return;
-        }
-
         // Compute surface normals
         pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
-        ne.setInputCloud(cloud_filtered);
+        ne.setInputCloud(cloud);
         pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
         ne.setSearchMethod(tree);
         pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>());
         ne.setRadiusSearch(0.03); // TODO tune? Add vars to top / ROS args lmao
         ne.compute(*cloud_normals);
-        publishNormalMarkers(cloud_filtered, cloud_normals,cloud_msg->header);
+        publishNormalMarkers(cloud, cloud_normals,cloud_msg->header);
 
         if (cloud_normals->points.empty()) {
             RCLCPP_WARN(this->get_logger(), "No normals were computed!");
@@ -72,11 +60,11 @@ private:
 
         // Compute centroid
         // Eigen::Vector4f centroid;
-        // pcl::compute3DCentroid(*cloud_filtered, centroid);
+        // pcl::compute3DCentroid(*cloud, centroid);
 
         // Find optimal grasp points
         geometry_msgs::msg::Point grasp_point1, grasp_point2;
-        if (!findOptimalGraspPoints(cloud_filtered, cloud_normals, grasp_point1, grasp_point2)) { // findOptimalGraspPoints
+        if (!findOptimalGraspPoints(cloud, cloud_normals, grasp_point1, grasp_point2)) { // findOptimalGraspPoints
             RCLCPP_WARN(this->get_logger(), "Failed to find optimal grasp points!");
             return;
         }
@@ -91,7 +79,7 @@ private:
                                 geometry_msgs::msg::Point &point1,
                                 geometry_msgs::msg::Point &point2)
     {
-        double max_quality = -std::numeric_limits<double>::infinity();
+        double max_quality = std::numeric_limits<double>::infinity();
         geometry_msgs::msg::Point best_point1, best_point2;
 
         // Iterate through all point pairs to evaluate grasp quality
@@ -111,11 +99,13 @@ private:
                 // Compute quality based on alignment with normals
                 Eigen::Vector3f normal1(normals->points[i].normal_x, normals->points[i].normal_y, normals->points[i].normal_z);
                 Eigen::Vector3f normal2(normals->points[j].normal_x, normals->points[j].normal_y, normals->points[j].normal_z);
-                double alignment = std::abs(grasp_vector.dot(normal1)) + std::abs(grasp_vector.dot(normal2));
+                // double alignment = std::abs(grasp_vector.dot(normal1)) + std::abs(grasp_vector.dot(normal2));
+                double alignment = normal1.dot(normal2)/(normal1.norm()*normal2.norm()); // -1 = anti-||
+                // TODO calculate alignment based on grasp quality metrics from that paper  / HW
 
-                // TODO: Add reachability, gripper width, and collision checking
+                // TODO: Add reachability (disntance + orientation), gripper width, and collision checking
 
-                if (alignment > max_quality) {
+                if (alignment < max_quality) { // goal is -1
                     max_quality = alignment;
                     best_point1.x = p1[0];
                     best_point1.y = p1[1];

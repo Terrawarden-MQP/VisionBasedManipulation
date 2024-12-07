@@ -20,7 +20,7 @@ Some of these can be for future years. These are not comprehsensive and not in a
 5) Constraints on potential grasps (get gripper numbers lmao)
 6) Test on the Jetson with realsense
 7) Change point cluster extractor node to rely on realsense code instead of PCL + ROS (see links in file)
-8) Get width/height of camera frame in 2D from camera_info node
+8) Add optional launch params to tune filters, or make filters dynamic
 9) Check topics in RViz file, potentially modify colors to visualize better for testing purposes
 10) New launch file (i.e. above minus `vbm_project_env`)
     a) For flight, get rid of `vbm_project_env`
