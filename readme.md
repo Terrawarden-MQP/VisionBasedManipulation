@@ -24,3 +24,11 @@ Some of these can be for future years. These are not comprehsensive and not in a
 9) Check topics in RViz file, potentially modify colors to visualize better for testing purposes
 10) New launch file (i.e. above minus `vbm_project_env`)
     a) For flight, get rid of `vbm_project_env`
+
+## Launch order (temporary TODO DELETE)
+Terminals:
+1. `ros2 launch vbm_project_env simulation.launch.py`
+2. `ros2 run vbm_project_env move_camera.py` with sub `/opt/ros/humble/lib/gazebo_ros/spawn_entity.py -file /home/mcalec/mqp/install/vbm_project_env/share/vbm_project_env/urdf/camera.urdf -entity camera -z 1 -P 1.57`
+3. `ros2 topic pub /target_2d_coords geometry_msgs/Point "{x: 320, y: 240, z: 0}"`
+4. `ros2 run grasp_vision_cpp extract_cluster`
+5. `ros2 run grasp_vision_cpp optimal_grasp`
