@@ -7,7 +7,7 @@ Simulated environment for testing pipeline of getting 2D coordinates of an objec
     1a) If the camera fails to spawn (edit path as necessary): `/opt/ros/humble/lib/gazebo_ros/spawn_entity.py -file /home/mcalec/mqp/install/vbm_project_env/share/vbm_project_env/urdf/camera.urdf -entity camera -z 1 -P 1.57`
     1b) Remember to close Gazebo from the GUI before hitting Ctrl+C or Ctrl+Z or be prepared to restart Linux to restore Gazebo's functionality!
 2) To easily move camera, run this and stop it when in an ideal spot: `ros2 run vbm_project_env move_camera.py`
-3) Publish a point representing the center of the detected object in 2D (change x/y as necessary): `ros2 topic pub /target_2d_coords geometry_msgs/Point "{x: 320 y: 240, z: 0}"`
+3) Publish a point representing the center of the detected object in 2D (change x/y as necessary): `ros2 topic pub /target_2d_coords geometry_msgs/Point "{x: 320, y: 240, z: 0}"`
 4) Launch point cluster extractor node: `ros2 run grasp_vision_cpp extract_cluster`
 5) Launch optimal grasp node: `ros2 run grasp_vision_cpp optimal_grasp`
 
