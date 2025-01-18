@@ -43,6 +43,13 @@ public:
 
         cluster_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/detected_cluster", 10);
 
+        if(VISUALIZE){
+            crop_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/visualize/crop", 10);
+            sor_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/visualize/sor", 10);
+            voxel_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/visualize/voxel", 10);
+            plane_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/visualize/plane", 10);        
+        }
+
         camera_info_subscription_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
             "/realsense/camera_info", 10, 
             [this](const sensor_msgs::msg::CameraInfo::SharedPtr msg) {
@@ -55,10 +62,15 @@ public:
     }
 
 private:
+    bool VISUALIZE = false;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_sub_;
     rclcpp::Subscription<geometry_msgs::msg::Point>::SharedPtr coord_sub_;
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_subscription_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cluster_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr crop_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr sor_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr voxel_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr plane_pub_;
     sensor_msgs::msg::PointCloud2::SharedPtr pointcloud_data_;
     std::pair<int, int> latest_2d_point_;
     int image_width_, image_height_;
@@ -158,6 +170,44 @@ private:
         extract.setIndices(inliers);
         extract.setNegative (true); // false = return plane
         extract.filter (*cloud_processed);
+
+        if(VISUALIZE){
+            pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_processed_inverted(new pcl::PointCloud<pcl::PointXYZ>);
+            // Invert remove ground (plane segmentation)
+            pcl::SACSegmentation<pcl::PointXYZ> seg;
+            pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+            pcl::ModelCoefficients::Ptr coeff (new pcl::ModelCoefficients);
+            seg.setOptimizeCoefficients (true);
+            seg.setModelType (pcl::SACMODEL_PLANE);
+            seg.setMethodType (pcl::SAC_RANSAC);
+            seg.setMaxIterations (1000); // TODO make params if needed
+            seg.setDistanceThreshold (0.01);
+            // Segment the largest planar component from the cropped cloud
+            seg.setInputCloud (cloud_voxel);
+            seg.segment (*inliers, *coeff);
+            // coefficients = coeff; // Store plane coefficients if desired
+            if (inliers->indices.size () == 0)
+            {
+                RCLCPP_WARN(this->get_logger(), "Failed to estimate planar model");
+            }
+            pcl::ExtractIndices<pcl::PointXYZ> extract;
+            extract.setInputCloud (cloud_voxel);
+            extract.setIndices(inliers);
+            extract.setNegative (false); // false = return plane
+            extract.filter (*cloud_processed_inverted);
+
+            sensor_msgs::msg::PointCloud2 cloud_msg;
+            pcl::toROSMsg(*cloud_crop, cloud_msg);
+            cloud_msg.header.frame_id = "camera_link"; 
+            cloud_msg.header.stamp = this->now();
+            crop_pub_->publish(cloud_msg); 
+            pcl::toROSMsg(*cloud_sor, cloud_msg);
+            sor_pub_->publish(cloud_msg);
+            pcl::toROSMsg(*cloud_voxel,cloud_msg);
+            voxel_pub_->publish(cloud_msg);
+            pcl::toROSMsg(*cloud_processed_inverted,cloud_msg);
+            plane_pub_->publish(cloud_msg);
+        }
 
         // Find the object cluster containing this point
         auto cluster = find_object_cluster(cloud_processed, target_point);
