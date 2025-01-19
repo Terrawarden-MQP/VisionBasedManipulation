@@ -18,8 +18,22 @@ class OptimalGraspNode : public rclcpp::Node
 public:
     OptimalGraspNode() : Node("optimal_grasp")
     {
+        // ROS parameters
+        this->declare_parameter<std::string>("cluster_topic", "/detected_cluster");
+        this->declare_parameter<double>("normal_search_radius", 0.03);
+        this->declare_parameter<bool>("robust_search", false);
+        this->declare_parameter<double>("min_search_threshold", 0.02);
+        this->declare_parameter<double>("max_search_threshold", 0.1);
+
+        // Retrieve ROS parameters
+        cluster_topic = this->get_parameter("cluster_topic").as_string();
+        normal_search_radius = this->get_parameter("normal_search_radius").as_double();
+        robust_search = this->get_parameter("robust_search").as_bool();
+        min_search_threshold = this->get_parameter("min_search_threshold").as_double();
+        max_search_threshold = this->get_parameter("max_search_threshold").as_double();
+
         subscription_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-            "/detected_cluster", 10, // from extract_cluster
+            cluster_topic, 10, // from extract_cluster
             std::bind(&OptimalGraspNode::graspPlanningCallback, this, std::placeholders::_1));
 
         normal_marker_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/normal_markers", 10);
@@ -27,6 +41,10 @@ public:
     }
 
 private:
+    std::string cluster_topic;
+    double normal_search_radius, min_search_threshold, max_search_threshold; 
+    bool robust_search;
+
     void graspPlanningCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg)
     {
         RCLCPP_INFO(this->get_logger(), "Received point cloud!");
@@ -49,7 +67,7 @@ private:
         pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
         ne.setSearchMethod(tree);
         pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>());
-        ne.setRadiusSearch(0.03); // TODO tune? Add vars to top / ROS args lmao
+        ne.setRadiusSearch(normal_search_radius);
         ne.compute(*cloud_normals);
         publishNormalMarkers(cloud, cloud_normals,cloud_msg->header);
 
@@ -64,7 +82,9 @@ private:
 
         // Find optimal grasp points
         geometry_msgs::msg::Point grasp_point1, grasp_point2;
-        if (!findOptimalGraspPoints(cloud, cloud_normals, grasp_point1, grasp_point2)) { // findOptimalGraspPoints
+        bool grasp_algorithm = !robust_search ? findOptimalGraspPoints(cloud, cloud_normals, grasp_point1, grasp_point2) : 
+            findOptimalGraspPointsWithUncertainty(cloud,cloud_normals,grasp_point1,grasp_point2);
+        if (!grasp_algorithm) {
             RCLCPP_WARN(this->get_logger(), "Failed to find optimal grasp points!");
             return;
         }
@@ -92,7 +112,7 @@ private:
 
                 // Skip if the points are too close or too far
                 double distance = grasp_vector.norm();
-                if (distance < 0.02 || distance > 0.1) { // Adjust thresholds for gripper size
+                if (distance < min_search_threshold || distance > max_search_threshold) { // Adjust thresholds for gripper size
                     continue;
                 }
 
@@ -152,7 +172,7 @@ private:
 
                 // Skip if the points are too close or too far
                 double distance = grasp_vector.norm();
-                if (distance < 0.02 || distance > 0.1) { // Adjust thresholds for gripper size
+                if (distance < min_search_threshold || distance > max_search_threshold) { // Adjust thresholds for gripper size
                     continue;
                 }
 

@@ -35,23 +35,49 @@ https://medium.com/@pacogarcia3/calculate-x-y-z-real-world-coordinates-from-imag
 class PointCloudClusterDetector : public rclcpp::Node {
 public:
     PointCloudClusterDetector() : Node("extract_cluster") {
+        // ROS parameters
+        this->declare_parameter<std::string>("input_pointcloud_topic", "/realsense/points");
+        this->declare_parameter<std::string>("input_coord_topic", "/target_2d_coords");
+        this->declare_parameter<std::string>("output_cluster_topic", "/detected_cluster");
+        this->declare_parameter<std::string>("camera_info_topic", "/realsense/camera_info");
+        this->declare_parameter<bool>("visualize", false);
+        this->declare_parameter<double>("crop_radius", 0.2);
+        this->declare_parameter<int>("sor_mean_k", 50);
+        this->declare_parameter<double>("sor_stddev_mul_thresh", 1.0);
+        this->declare_parameter<double>("voxel_leaf_size", 0.01);
+        this->declare_parameter<int>("ransac_max_iterations", 1000);
+        this->declare_parameter<double>("ransac_distance_threshold", 0.01);
+        this->declare_parameter<std::string>("header_frame","camera_link");
+        this->declare_parameter<double>("cluster_tolerance", 0.02);
+        this->declare_parameter<int>("min_cluster_size", 100);
+        this->declare_parameter<int>("max_cluster_size", 25000);
+        this->declare_parameter<double>("target_point_tolerance",0.02);
+
+        // Retrieve ROS parameters
+        pointcloud_topic = this->get_parameter("input_pointcloud_topic").as_string();
+        coord_topic = this->get_parameter("input_coord_topic").as_string();
+        cluster_topic = this->get_parameter("output_cluster_topic").as_string();
+        camera_info_topic = this->get_parameter("camera_info_topic").as_string();
+        VISUALIZE = this->get_parameter("visualize").as_bool();
+        crop_radius = this->get_parameter("crop_radius").as_double();
+        sor_mean_k = this->get_parameter("sor_mean_k").as_int();
+        sor_stddev_mul_thresh = this->get_parameter("sor_stddev_mul_thresh").as_double();
+        voxel_leaf_size = this->get_parameter("voxel_leaf_size").as_double();
+        ransac_max_iterations = this->get_parameter("ransac_max_iterations").as_int();
+        ransac_distance_threshold = this->get_parameter("ransac_distance_threshold").as_double();
+        header_frame = this->get_parameter("header_frame").as_string();
+        cluster_tolerance = this->get_parameter("cluster_tolerance").as_double();
+        min_cluster_size = this->get_parameter("min_cluster_size").as_int();
+        max_cluster_size = this->get_parameter("max_cluster_size").as_int();
+        target_point_tolerance = this->get_parameter("target_point_tolerance").as_double();
+
+        // Subscriptions + Publishers 
         pointcloud_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-            "/realsense/points", 10, std::bind(&PointCloudClusterDetector::pointcloud_callback, this, std::placeholders::_1)); // TODO
-
+            pointcloud_topic, 10, std::bind(&PointCloudClusterDetector::pointcloud_callback, this, std::placeholders::_1));
         coord_sub_ = this->create_subscription<geometry_msgs::msg::Point>(
-            "/target_2d_coords", 10, std::bind(&PointCloudClusterDetector::coord_callback, this, std::placeholders::_1));
-
-        cluster_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/detected_cluster", 10);
-
-        if(VISUALIZE){
-            crop_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/visualize/crop", 10);
-            sor_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/visualize/sor", 10);
-            voxel_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/visualize/voxel", 10);
-            plane_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/visualize/plane", 10);        
-        }
-
+            coord_topic, 10, std::bind(&PointCloudClusterDetector::coord_callback, this, std::placeholders::_1));
         camera_info_subscription_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
-            "/realsense/camera_info", 10, 
+            camera_info_topic, 10, 
             [this](const sensor_msgs::msg::CameraInfo::SharedPtr msg) {
                 RCLCPP_INFO(this->get_logger(), "Camera RGB image width: %d, height: %d", msg->width, msg->height);
                 image_width_ = msg->width;
@@ -59,18 +85,24 @@ public:
                 // Unsubscribe after receiving the data once
                 camera_info_subscription_.reset();
             });
+        cluster_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(cluster_topic, 10);
+        if(VISUALIZE){
+            crop_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/visualize/crop", 10);
+            sor_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/visualize/sor", 10);
+            voxel_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/visualize/voxel", 10);
+            plane_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/visualize/plane", 10);        
+        }
     }
 
 private:
+    std::string pointcloud_topic, coord_topic, cluster_topic, camera_info_topic, header_frame;
+    double crop_radius, sor_stddev_mul_thresh, voxel_leaf_size, ransac_distance_threshold, cluster_tolerance, target_point_tolerance;
     bool VISUALIZE = false;
+    int sor_mean_k, ransac_max_iterations, min_cluster_size, max_cluster_size;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_sub_;
     rclcpp::Subscription<geometry_msgs::msg::Point>::SharedPtr coord_sub_;
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_subscription_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cluster_pub_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr crop_pub_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr sor_pub_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr voxel_pub_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr plane_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cluster_pub_, crop_pub_, sor_pub_, voxel_pub_, plane_pub_;    
     sensor_msgs::msg::PointCloud2::SharedPtr pointcloud_data_;
     std::pair<int, int> latest_2d_point_;
     int image_width_, image_height_;
@@ -127,7 +159,7 @@ private:
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_crop(new pcl::PointCloud<pcl::PointXYZ>());
         pcl::CropBox<pcl::PointXYZ> crop;
         crop.setInputCloud(cloud);
-        float radius = 0.2; // meters
+        float radius = crop_radius; // meters
         crop.setMin(Eigen::Vector4f(target_point.x - radius, target_point.y - radius, target_point.z - radius, 0));
         crop.setMax(Eigen::Vector4f(target_point.x + radius, target_point.y + radius, target_point.z + radius, 0));
         crop.filter(*cloud_crop);
@@ -137,15 +169,15 @@ private:
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_sor(new pcl::PointCloud<pcl::PointXYZ>);
         pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
         sor.setInputCloud(cloud_crop);
-        sor.setMeanK(50);  // Number of neighbors to analyze for each point TODO
-        sor.setStddevMulThresh(1.0);  // Standard deviation multiplier TODO
+        sor.setMeanK(sor_mean_k);  // Number of neighbors to analyze for each point
+        sor.setStddevMulThresh(sor_stddev_mul_thresh);  // Standard deviation multiplier
         sor.filter(*cloud_sor);
 
         // Downsample point cloud using VoxelGrid filter
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_voxel(new pcl::PointCloud<pcl::PointXYZ>);
         pcl::VoxelGrid<pcl::PointXYZ> vg;
         vg.setInputCloud(cloud_sor);
-        vg.setLeafSize(0.01f, 0.01f, 0.01f);  // Adjust for resolution TODO
+        vg.setLeafSize(voxel_leaf_size,voxel_leaf_size,voxel_leaf_size); 
         vg.filter(*cloud_voxel);
 
         // Remove ground (plane segmentation)
@@ -155,8 +187,8 @@ private:
         seg.setOptimizeCoefficients (true);
         seg.setModelType (pcl::SACMODEL_PLANE);
         seg.setMethodType (pcl::SAC_RANSAC);
-        seg.setMaxIterations (1000); // TODO make params if needed
-        seg.setDistanceThreshold (0.01);
+        seg.setMaxIterations (ransac_max_iterations); 
+        seg.setDistanceThreshold (ransac_distance_threshold);
         // Segment the largest planar component from the cropped cloud
         seg.setInputCloud (cloud_voxel);
         seg.segment (*inliers, *coeff);
@@ -180,8 +212,8 @@ private:
             seg.setOptimizeCoefficients (true);
             seg.setModelType (pcl::SACMODEL_PLANE);
             seg.setMethodType (pcl::SAC_RANSAC);
-            seg.setMaxIterations (1000); // TODO make params if needed
-            seg.setDistanceThreshold (0.01);
+            seg.setMaxIterations (ransac_max_iterations);
+            seg.setDistanceThreshold (ransac_distance_threshold);
             // Segment the largest planar component from the cropped cloud
             seg.setInputCloud (cloud_voxel);
             seg.segment (*inliers, *coeff);
@@ -198,7 +230,7 @@ private:
 
             sensor_msgs::msg::PointCloud2 cloud_msg;
             pcl::toROSMsg(*cloud_crop, cloud_msg);
-            cloud_msg.header.frame_id = "camera_link"; 
+            cloud_msg.header.frame_id = header_frame; 
             cloud_msg.header.stamp = this->now();
             crop_pub_->publish(cloud_msg); 
             pcl::toROSMsg(*cloud_sor, cloud_msg);
@@ -215,7 +247,7 @@ private:
             RCLCPP_INFO(this->get_logger(), "Cluster found with %lu points", cluster->points.size());
             sensor_msgs::msg::PointCloud2 cluster_msg;
             pcl::toROSMsg(*cluster, cluster_msg);
-            cluster_msg.header.frame_id = "camera_link";  // TODO check
+            cluster_msg.header.frame_id = header_frame;
             cluster_msg.header.stamp = this->now();
             cluster_pub_->publish(cluster_msg); 
         } else {
@@ -235,9 +267,9 @@ private:
         pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
         tree->setInputCloud(cloud_filtered);
         pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-        ec.setClusterTolerance(0.02); // 2cm
-        ec.setMinClusterSize(100);
-        ec.setMaxClusterSize(25000);
+        ec.setClusterTolerance(cluster_tolerance); // 2cm
+        ec.setMinClusterSize(min_cluster_size);
+        ec.setMaxClusterSize(max_cluster_size);
         ec.setSearchMethod(tree);
         
         // Perform clustering
@@ -253,7 +285,7 @@ private:
             }
 
             // Check if target_point is in this cluster
-            double tolerance = 0.02;
+            double tolerance = target_point_tolerance;
             for (const auto& point : cluster->points) {
                 if (std::fabs(point.x - target_point.x) < tolerance &&
                     std::fabs(point.y - target_point.y) < tolerance &&
