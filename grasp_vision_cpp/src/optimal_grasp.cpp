@@ -12,6 +12,7 @@
 #include <visualization_msgs/msg/marker_array.hpp>
 // #include <random>
 // #include <cmath>
+#include <sstream>
 
 class OptimalGraspNode : public rclcpp::Node
 {
@@ -77,13 +78,18 @@ private:
         }
 
         // Compute centroid
-        // Eigen::Vector4f centroid;
-        // pcl::compute3DCentroid(*cloud, centroid);
+        Eigen::Vector4f center;
+        pcl::compute3DCentroid(*cloud, center);
+        geometry_msgs::msg::Point centroid;
+        centroid.x = center[0];
+        centroid.y = center[1];
+        centroid.z = center[2];
 
         // Find optimal grasp points
         geometry_msgs::msg::Point grasp_point1, grasp_point2;
-        bool grasp_algorithm = !robust_search ? findOptimalGraspPoints(cloud, cloud_normals, grasp_point1, grasp_point2) : 
-            findOptimalGraspPointsWithUncertainty(cloud,cloud_normals,grasp_point1,grasp_point2);
+        // bool grasp_algorithm = !robust_search ? findOptimalGraspPoints(cloud, cloud_normals, grasp_point1, grasp_point2) : 
+        //     findOptimalGraspPointsWithUncertainty(cloud,cloud_normals,grasp_point1,grasp_point2);
+        bool grasp_algorithm = findOptimalGraspPointsMinSVD(cloud, cloud_normals, grasp_point1, grasp_point2, centroid);
         if (!grasp_algorithm) {
             RCLCPP_WARN(this->get_logger(), "Failed to find optimal grasp points!");
             return;
@@ -91,6 +97,80 @@ private:
 
         // Publish grasp markers for visualization
         publishGraspMarkers(grasp_point1, grasp_point2, cloud_msg->header);
+    }
+
+    bool findOptimalGraspPointsMinSVD(
+        const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud,
+        const pcl::PointCloud<pcl::Normal>::Ptr &normals,
+        geometry_msgs::msg::Point &point1,
+        geometry_msgs::msg::Point &point2,
+        geometry_msgs::msg::Point &centroid)
+    {
+        double max_quality = -std::numeric_limits<double>::infinity();
+        geometry_msgs::msg::Point best_point1, best_point2;
+
+        // Iterate through all point pairs to calculate grasp matrices
+        for (size_t i = 0; i < cloud->points.size(); ++i) {
+            for (size_t j = i + 1; j < cloud->points.size(); ++j) {
+                // Extract points and their normals
+                Eigen::Vector3d p1(cloud->points[i].x, cloud->points[i].y, cloud->points[i].z);
+                Eigen::Vector3d p2(cloud->points[j].x, cloud->points[j].y, cloud->points[j].z);
+                Eigen::Vector3d n1(normals->points[i].normal_x, normals->points[i].normal_y, normals->points[i].normal_z);
+                Eigen::Vector3d n2(normals->points[j].normal_x, normals->points[j].normal_y, normals->points[j].normal_z);
+
+                // Skip if the points are too close or too far
+                double distance = (p2 - p1).norm();
+                if (distance < min_search_threshold || distance > max_search_threshold) {
+                    continue;
+                }
+
+                // Build grasp matrix G for the two contact points
+                Eigen::Matrix<double, 6, 6> G = Eigen::Matrix<double, 6, 6>::Zero();
+
+                // First contact point
+                G.block<3, 1>(0, 0) = n1; // Force contribution
+                G.block<3, 1>(3, 0) = p1.cross(n1); // Torque contribution
+
+                // Second contact point
+                G.block<3, 1>(0, 1) = n2; // Force contribution
+                G.block<3, 1>(3, 1) = p2.cross(n2); // Torque contribution
+
+                // Evaluate grasp quality using the singular value decomposition (SVD)
+                Eigen::JacobiSVD<Eigen::MatrixXd> svd(G, Eigen::ComputeThinU | Eigen::ComputeThinV);
+                double min_singular_value = svd.singularValues().minCoeff(); // Stability metric
+
+                // Update best grasp if this one is better
+                RCLCPP_INFO(this->get_logger(), "Min SVD: %f",min_singular_value);
+                std::ostringstream oss;
+                oss << G;
+                RCLCPP_INFO(this->get_logger(), "G:\n%s", oss.str().c_str());
+                if (min_singular_value > max_quality) {
+                    max_quality = min_singular_value;
+                    best_point1.x = p1[0];
+                    best_point1.y = p1[1];
+                    best_point1.z = p1[2];
+                    best_point2.x = p2[0];
+                    best_point2.y = p2[1];
+                    best_point2.z = p2[2];
+                }
+            }
+        }
+
+        // Check if a valid grasp was found
+        if (max_quality == -std::numeric_limits<double>::infinity()) {
+            RCLCPP_WARN(this->get_logger(), "Failed to find a valid grasp matrix!");
+            return false;
+        }
+
+        // Assign the best points to the output parameters
+        point1 = best_point1;
+        point2 = best_point2;
+
+        RCLCPP_INFO(this->get_logger(), "Optimal Point 1: (%f, %f, %f)", best_point1.x, best_point1.y, best_point1.z);
+        RCLCPP_INFO(this->get_logger(), "Optimal Point 2: (%f, %f, %f)", best_point2.x, best_point2.y, best_point2.z);
+        RCLCPP_INFO(this->get_logger(), "Max Grasp Quality (Min Singular Value): %f", max_quality);
+
+        return true;
     }
 
     bool findOptimalGraspPoints(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud,
