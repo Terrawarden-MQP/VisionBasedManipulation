@@ -80,16 +80,16 @@ private:
         // Compute centroid
         Eigen::Vector4f center;
         pcl::compute3DCentroid(*cloud, center);
-        geometry_msgs::msg::Point centroid;
-        centroid.x = center[0];
-        centroid.y = center[1];
-        centroid.z = center[2];
+        Eigen::Vector3d centroid;
+        centroid[0] = center[0];
+        centroid[1] = center[1];
+        centroid[2] = center[3];
 
         // Find optimal grasp points
         geometry_msgs::msg::Point grasp_point1, grasp_point2;
         // bool grasp_algorithm = !robust_search ? findOptimalGraspPoints(cloud, cloud_normals, grasp_point1, grasp_point2) : 
         //     findOptimalGraspPointsWithUncertainty(cloud,cloud_normals,grasp_point1,grasp_point2);
-        bool grasp_algorithm = findOptimalGraspPointsMinSVD(cloud, cloud_normals, grasp_point1, grasp_point2, centroid);
+        bool grasp_algorithm = findOptimalGraspPointsQuality(cloud, cloud_normals, grasp_point1, grasp_point2, centroid);
         if (!grasp_algorithm) {
             RCLCPP_WARN(this->get_logger(), "Failed to find optimal grasp points!");
             return;
@@ -99,12 +99,85 @@ private:
         publishGraspMarkers(grasp_point1, grasp_point2, cloud_msg->header);
     }
 
-    bool findOptimalGraspPointsMinSVD(
+    // Based on RBE 595 VBM F24 HW 3
+    
+    // Helper function to calculate skew-symmetric matrix
+    Eigen::Matrix3d skew(const Eigen::Vector3d& vec) {
+        Eigen::Matrix3d skewMat;
+        skewMat <<  0,        -vec.z(),  vec.y(),
+                    vec.z(),   0,       -vec.x(),
+                -vec.y(),   vec.x(),  0;
+        return skewMat;
+    }
+
+    // Helper function to compute rotation matrix from surface normal
+    Eigen::Matrix3d rotationMatrix(const Eigen::Vector3d& normal) {
+        Eigen::Vector3d z = normal.normalized(); // Surface normal as z-axis
+        Eigen::Vector3d x, y;
+
+        // Orthogonal x-axis (avoid collinearity)
+        if (std::abs(z.x()) > std::abs(z.y()))
+            x = Eigen::Vector3d(-z.z(), 0, z.x()).normalized();
+        else
+            x = Eigen::Vector3d(0, z.z(), -z.y()).normalized();
+
+        y = z.cross(x); // Cross product y-axis
+
+        Eigen::Matrix3d R; // Rotation matrix
+        R.col(0) = x;
+        R.col(1) = y;
+        R.col(2) = z;
+        return R;
+    }
+
+    // Helper function to calculate the grasp P matrix
+    Eigen::MatrixXd calcGraspPMatrix(const Eigen::MatrixXd& contact_points, const Eigen::Vector3d& centroid) {
+        int N = contact_points.rows(); // Number of contact points
+        Eigen::MatrixXd P = Eigen::MatrixXd::Zero(6 * N, 6); // Initialize P matrix
+
+        for (int i = 0; i < N; ++i) {
+            Eigen::Vector3d contact_point_i = contact_points.row(i); // Contact point
+            Eigen::MatrixXd Pi(6, 6);
+            Pi.setZero();
+
+            Pi.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
+            Pi.block<3, 3>(0, 3) = skew(contact_point_i - centroid).transpose();
+            Pi.block<3, 3>(3, 3) = Eigen::Matrix3d::Identity();
+
+            P.block<6, 6>(i * 6, 0) = Pi;
+        }
+
+        return P;
+    }
+
+    // Helper function to calculate the grasp matrix for N contact points
+    Eigen::MatrixXd calcGraspMatrix(const Eigen::MatrixXd& contact_points, const Eigen::MatrixXd& normals, const Eigen::Vector3d& centroid) {
+        int N = contact_points.rows(); // Number of contact points
+        Eigen::MatrixXd G = Eigen::MatrixXd::Zero(6, 6 * N); // Initialize G matrix
+        Eigen::MatrixXd P = calcGraspPMatrix(contact_points, centroid);          // Compute P matrix
+        for (int i = 0; i < N; ++i) {
+            Eigen::Vector3d normal = normals.row(i);
+            // Eigen::Vector3d normal = normals.segment<3>(i * 3); // Extract surface normal for contact point i
+            Eigen::Matrix3d Ri = rotationMatrix(normal); // Compute rotation matrix from surface normal
+
+            Eigen::MatrixXd Ri_bar(6, 6); // Block diagonal rotation matrix
+            Ri_bar.setZero();
+            Ri_bar.block<3, 3>(0, 0) = Ri; // Top-left 3x3 block
+            Ri_bar.block<3, 3>(3, 3) = Ri; // Bottom-right 3x3 block
+
+            Eigen::MatrixXd Gi_T = Ri_bar * P.block<6, 6>(i * 6, 0); // Compute Gi transpose
+            G.block<6, 6>(0, i * 6) = Gi_T.transpose();             // Append Gi^T to G
+        }
+
+        return G;
+    }
+
+    bool findOptimalGraspPointsQuality(
         const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud,
         const pcl::PointCloud<pcl::Normal>::Ptr &normals,
         geometry_msgs::msg::Point &point1,
         geometry_msgs::msg::Point &point2,
-        geometry_msgs::msg::Point &centroid)
+        Eigen::Vector3d &centroid)
     {
         double max_quality = -std::numeric_limits<double>::infinity();
         geometry_msgs::msg::Point best_point1, best_point2;
@@ -125,27 +198,35 @@ private:
                 }
 
                 // Build grasp matrix G for the two contact points
-                Eigen::Matrix<double, 6, 6> G = Eigen::Matrix<double, 6, 6>::Zero();
+                Eigen::MatrixXd contact_points(2,3);
+                Eigen::MatrixXd normals(2,3);
+                contact_points.row(0) = p1;
+                contact_points.row(1) = p2;
+                normals.row(0) = n1;
+                normals.row(1) = n2;
 
-                // First contact point
-                G.block<3, 1>(0, 0) = n1; // Force contribution
-                G.block<3, 1>(3, 0) = p1.cross(n1); // Torque contribution
-
-                // Second contact point
-                G.block<3, 1>(0, 1) = n2; // Force contribution
-                G.block<3, 1>(3, 1) = p2.cross(n2); // Torque contribution
+                Eigen::MatrixXd G = calcGraspMatrix(contact_points, normals, centroid);
 
                 // Evaluate grasp quality using the singular value decomposition (SVD)
                 Eigen::JacobiSVD<Eigen::MatrixXd> svd(G, Eigen::ComputeThinU | Eigen::ComputeThinV);
-                double min_singular_value = svd.singularValues().minCoeff(); // Stability metric
 
+                // TODO pick stability metric
+                // maximum minimum singular value of grasp matrix
+                // double min_singular_value = svd.singularValues().minCoeff();
+
+                // maximum volume of the ellipsoid in the wrench space 
+                // double vew_singular_value = svd.singularValues().prod();
+
+                // grasp isotropy index (1 = isotropic / optimal, 0 = singular configuration)
+                double gii_singular_value = svd.singularValues().minCoeff() / svd.singularValues().maxCoeff();
+
+                double singular_value = gii_singular_value;
+                
                 // Update best grasp if this one is better
-                RCLCPP_INFO(this->get_logger(), "Min SVD: %f",min_singular_value);
-                std::ostringstream oss;
-                oss << G;
-                RCLCPP_INFO(this->get_logger(), "G:\n%s", oss.str().c_str());
-                if (min_singular_value > max_quality) {
-                    max_quality = min_singular_value;
+                RCLCPP_DEBUG(this->get_logger(), "SVD: %f",singular_value);
+                RCLCPP_DEBUG(this->get_logger(), "G:\n%s", (std::ostringstream() << G).str().c_str());
+                if (singular_value > max_quality) {
+                    max_quality = singular_value;
                     best_point1.x = p1[0];
                     best_point1.y = p1[1];
                     best_point1.z = p1[2];
