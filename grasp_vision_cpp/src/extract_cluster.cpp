@@ -258,12 +258,7 @@ private:
         // Find the object cluster containing this point
         auto cluster = find_object_cluster(cloud_processed, target_point);
         if (cluster) {
-            // Downsample object cluster using VoxelGrid filter
             pcl::PointCloud<pcl::PointXYZ>::Ptr cluster_processed(new pcl::PointCloud<pcl::PointXYZ>);
-            // pcl::VoxelGrid<pcl::PointXYZ> vg;
-            // vg.setInputCloud(cluster);
-            // vg.setLeafSize(voxel_leaf_size_2,voxel_leaf_size_2,voxel_leaf_size_2); 
-            // vg.filter(*cluster_processed);
 
             // Compute surface normals
             pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
@@ -274,38 +269,12 @@ private:
             ne.setRadiusSearch(normal_search_radius);
             ne.compute(*cloud_normals);
 
-            // Extract boundaries 
-            // pcl::PointCloud<pcl::Boundary>::Ptr boundaries(new pcl::PointCloud<pcl::Boundary>);
-            // pcl::BoundaryEstimation<pcl::PointXYZ, pcl::Normal, pcl::Boundary> boundary_est;
-            // boundary_est.setInputCloud(cluster);
-            // boundary_est.setInputNormals(cloud_normals);
-            // pcl::search::KdTree<pcl::PointXYZ>::Ptr tree_(new pcl::search::KdTree<pcl::PointXYZ>);
-            // boundary_est.setSearchMethod(tree_);
-            // boundary_est.setRadiusSearch(voxel_leaf_size_2); // TODO
-            // boundary_est.compute(*boundaries);
-
-            // Extract boundary points
-            // pcl::PointCloud<pcl::PointXYZ>::Ptr cluster_processed(new pcl::PointCloud<pcl::PointXYZ>);
-            // for (size_t i = 0; i < cloud->size(); ++i) {
-            //     if (boundaries->points[i].boundary_point > 0) {
-            //         cluster_processed->push_back(cluster->points[i]);
-            //     }
-            // }
-
-            // Convex Hull NOTE Concave Hull with v large values for alpha was better
-            // pcl::PointCloud<pcl::PointXYZ>::Ptr cluster_processed(new pcl::PointCloud<pcl::PointXYZ>);
-            // pcl::ConvexHull<pcl::PointXYZ> hull;
-            // hull.setInputCloud(cluster);
-            // // hull.setAlpha(voxel_leaf_size_2); // TODO
-            // hull.reconstruct(*cluster_processed);
-
-            // Curvature edge detection
+            // Curvature edge detection (select only stable points)
             for(int i = 0; i < cluster->size(); i++){
                 if(cloud_normals->points[i].curvature < curvature){ // TODO
                     cluster_processed->push_back(cluster->points[i]);
                 }
             }
-
 
             RCLCPP_INFO(this->get_logger(), "Cluster found with %lu points", cluster_processed->points.size());
             sensor_msgs::msg::PointCloud2 cluster_msg;
