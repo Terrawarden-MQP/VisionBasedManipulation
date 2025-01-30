@@ -11,7 +11,7 @@ def generate_launch_description():
         DeclareLaunchArgument('pointcloud_topic', default_value='/realsense/points', description='Pointcloud topic name'),
         DeclareLaunchArgument('coord_topic', default_value='/target_2d_coords', description='2D centroid target coordinates topic'),
         DeclareLaunchArgument('camera_info_topic', default_value='/realsense/camera_info', description='Camera info topic'),
-        DeclareLaunchArgument('visualize', default_value='false', description='Enable visualization in RViz of filters'),
+        DeclareLaunchArgument('visualize', default_value='false', description='Enable visualization in RViz of filters and normals'),
         DeclareLaunchArgument('crop_radius', default_value='0.2', description='Crop box radius'),
         DeclareLaunchArgument('sor_mean_k', default_value='50', description='SOR mean K'),
         DeclareLaunchArgument('sor_stddev_mul_thresh', default_value='1.0', description='SOR stddev multiplier threshold'),
@@ -23,10 +23,12 @@ def generate_launch_description():
         DeclareLaunchArgument('min_cluster_size', default_value='100', description='Minimum cluster size'),
         DeclareLaunchArgument('max_cluster_size', default_value='25000', description='Maximum cluster size'),
         DeclareLaunchArgument('target_point_tolerance', default_value='0.02', description='Target point tolerance'),
+        DeclareLaunchArgument('curvature', default_value='0.01', description='Curvature value for edge detection'),
         DeclareLaunchArgument('normal_search_radius', default_value='0.03', description='Normal search radius'),
         DeclareLaunchArgument('robust_search', default_value='false', description='Enable robust search'),
         DeclareLaunchArgument('min_search_threshold', default_value='0.02', description='Minimum search threshold'),
         DeclareLaunchArgument('max_search_threshold', default_value='0.1', description='Maximum search threshold'),
+        DeclareLaunchArgument('select_stability_metric', default_value='1', description='1: maximum minimum svd, 2: maximum volume ellipsoid in wrench space, 3: isotropy index'),
         Node(
             package='grasp_vision_cpp',
             executable='extract_cluster',
@@ -49,6 +51,8 @@ def generate_launch_description():
                     'min_cluster_size': LaunchConfiguration('min_cluster_size'),
                     'max_cluster_size': LaunchConfiguration('max_cluster_size'),
                     'target_point_tolerance': LaunchConfiguration('target_point_tolerance'),
+                    'curvature': LaunchConfiguration('curvature'),
+                    'normal_search_radius': LaunchConfiguration('normal_search_radius'),
                 }
             ]
         ),
@@ -62,7 +66,9 @@ def generate_launch_description():
                     'normal_search_radius': LaunchConfiguration('normal_search_radius'),
                     'robust_search': LaunchConfiguration('robust_search'),
                     'min_search_threshold': LaunchConfiguration('min_search_threshold'),
-                    'max_search_threshold': LaunchConfiguration('max_search_threshold')
+                    'max_search_threshold': LaunchConfiguration('max_search_threshold'),
+                    'visualize': LaunchConfiguration('visualize'),
+                    'select_stability_metric': LaunchConfiguration('select_stability_metric'),
                 }
             ]
         )
