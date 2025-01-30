@@ -13,6 +13,7 @@
 // #include <random>
 // #include <cmath>
 #include <sstream>
+#include <chrono>
 
 class OptimalGraspNode : public rclcpp::Node
 {
@@ -25,6 +26,8 @@ public:
         this->declare_parameter<bool>("robust_search", false);
         this->declare_parameter<double>("min_search_threshold", 0.02);
         this->declare_parameter<double>("max_search_threshold", 0.1);
+        this->declare_parameter<bool>("visualize", false);
+        this->declare_parameter<int>("select_stability_metric", 1);
 
         // Retrieve ROS parameters
         cluster_topic = this->get_parameter("cluster_topic").as_string();
@@ -32,6 +35,8 @@ public:
         robust_search = this->get_parameter("robust_search").as_bool();
         min_search_threshold = this->get_parameter("min_search_threshold").as_double();
         max_search_threshold = this->get_parameter("max_search_threshold").as_double();
+        VISUALIZE = this->get_parameter("visualize").as_bool();
+        select_stability_metric = this->get_parameter("select_stability_metric").as_int();
 
         subscription_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
             cluster_topic, 10, // from extract_cluster
@@ -44,11 +49,15 @@ public:
 private:
     std::string cluster_topic;
     double normal_search_radius, min_search_threshold, max_search_threshold; 
-    bool robust_search;
+    bool robust_search, VISUALIZE;
+    int select_stability_metric;
 
     void graspPlanningCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg)
     {
         RCLCPP_INFO(this->get_logger(), "Received point cloud!");
+
+        // Timer
+        auto t1 = std::chrono::high_resolution_clock::now();
 
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>());
         pcl::fromROSMsg(*cloud_msg, *cloud);
@@ -70,7 +79,9 @@ private:
         pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>());
         ne.setRadiusSearch(normal_search_radius);
         ne.compute(*cloud_normals);
-        publishNormalMarkers(cloud, cloud_normals,cloud_msg->header);
+        if(VISUALIZE){
+            publishNormalMarkers(cloud, cloud_normals,cloud_msg->header);
+        }
 
         if (cloud_normals->points.empty()) {
             RCLCPP_WARN(this->get_logger(), "No normals were computed!");
@@ -97,6 +108,12 @@ private:
 
         // Publish grasp markers for visualization
         publishGraspMarkers(grasp_point1, grasp_point2, cloud_msg->header);
+
+        // Timer
+        auto t2 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double,std::milli> elapsed = t2-t1;
+        RCLCPP_INFO(this->get_logger(),"Grasp time elapsed from receiving cloud: %f",elapsed);
+
     }
 
     // Based on RBE 595 VBM F24 HW 3
@@ -210,17 +227,25 @@ private:
                 // Evaluate grasp quality using the singular value decomposition (SVD)
                 Eigen::JacobiSVD<Eigen::MatrixXd> svd(G, Eigen::ComputeThinU | Eigen::ComputeThinV);
 
-                // TODO pick stability metric
-                // maximum minimum singular value of grasp matrix
-                // double min_singular_value = svd.singularValues().minCoeff();
-
-                // maximum volume of the ellipsoid in the wrench space 
-                // double vew_singular_value = svd.singularValues().prod();
-
-                // grasp isotropy index (1 = isotropic / optimal, 0 = singular configuration)
-                double gii_singular_value = svd.singularValues().minCoeff() / svd.singularValues().maxCoeff();
-
-                double singular_value = gii_singular_value;
+                // Select stability metric
+                double singular_value;
+                switch(select_stability_metric){
+                    case 1:
+                        // maximum minimum singular value of grasp matrix
+                        singular_value = svd.singularValues().minCoeff();
+                        break;
+                    case 2:
+                        // maximum volume of the ellipsoid in the wrench space 
+                        singular_value = svd.singularValues().prod();
+                        break;
+                    case 3:
+                        // grasp isotropy index (1 = isotropic / optimal, 0 = singular configuration)
+                        singular_value = svd.singularValues().minCoeff() / svd.singularValues().maxCoeff();
+                        break;
+                    default:
+                        RCLCPP_WARN(this->get_logger(),"Stability metric not set");
+                        singular_value = 0;
+                }
                 
                 // Update best grasp if this one is better
                 RCLCPP_DEBUG(this->get_logger(), "SVD: %f",singular_value);
