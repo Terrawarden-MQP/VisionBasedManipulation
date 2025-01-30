@@ -25,7 +25,6 @@ def generate_launch_description():
         DeclareLaunchArgument('target_point_tolerance', default_value='0.02', description='Target point tolerance'),
         DeclareLaunchArgument('curvature', default_value='0.01', description='Curvature value for edge detection'),
         DeclareLaunchArgument('normal_search_radius', default_value='0.03', description='Normal search radius'),
-        DeclareLaunchArgument('robust_search', default_value='false', description='Enable robust search'),
         DeclareLaunchArgument('min_search_threshold', default_value='0.02', description='Minimum search threshold'),
         DeclareLaunchArgument('max_search_threshold', default_value='0.1', description='Maximum search threshold'),
         DeclareLaunchArgument('select_stability_metric', default_value='1', description='1: maximum minimum svd, 2: maximum volume ellipsoid in wrench space, 3: isotropy index'),
@@ -64,7 +63,6 @@ def generate_launch_description():
                 {
                     'cluster_topic': LaunchConfiguration('cluster_topic'),
                     'normal_search_radius': LaunchConfiguration('normal_search_radius'),
-                    'robust_search': LaunchConfiguration('robust_search'),
                     'min_search_threshold': LaunchConfiguration('min_search_threshold'),
                     'max_search_threshold': LaunchConfiguration('max_search_threshold'),
                     'visualize': LaunchConfiguration('visualize'),
