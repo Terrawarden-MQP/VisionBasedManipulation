@@ -113,7 +113,7 @@ private:
         // Timer
         auto t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double,std::milli> elapsed = t2-t1;
-        RCLCPP_INFO(this->get_logger(),"Grasp time elapsed from receiving cloud: %f",elapsed);
+        RCLCPP_INFO(this->get_logger(),"Grasp time elapsed from receiving cloud: %f",elapsed.count());
 
     }
 
@@ -306,7 +306,7 @@ private:
         grasp_line_marker.points.push_back(point2);
 
         grasp_marker_publisher_->publish(grasp_line_marker);
-        RCLCPP_INFO(this->get_logger(), "Published grasp markers.");
+        RCLCPP_DEBUG(this->get_logger(), "Published grasp markers.");
     }
 
     void publishNormalMarkers(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud,
@@ -357,7 +357,7 @@ private:
         }
 
         // Publish the marker array
-        RCLCPP_INFO(this->get_logger(), "Publishing %ld normal markers.", marker_array.markers.size());
+        RCLCPP_DEBUG(this->get_logger(), "Publishing %ld normal markers.", marker_array.markers.size());
         normal_marker_publisher_->publish(marker_array);
     }
 };

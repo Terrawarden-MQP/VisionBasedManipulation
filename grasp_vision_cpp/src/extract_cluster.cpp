@@ -118,20 +118,20 @@ private:
     int image_width_, image_height_;
 
     void pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
-        RCLCPP_INFO(this->get_logger(), "Point cloud received!");
+        RCLCPP_DEBUG(this->get_logger(), "Point cloud received!");
         pointcloud_data_ = msg;
     }
 
     void coord_callback(const geometry_msgs::msg::Point::SharedPtr msg) {
         latest_2d_point_ = std::make_pair(static_cast<int>(msg->x), static_cast<int>(msg->y));
-        RCLCPP_INFO(this->get_logger(), "New 2D point received: (%d, %d)", latest_2d_point_.first, latest_2d_point_.second);
+        RCLCPP_DEBUG(this->get_logger(), "New 2D point received: (%d, %d)", latest_2d_point_.first, latest_2d_point_.second);
 
         if (pointcloud_data_) {
             auto t1 = std::chrono::high_resolution_clock::now();
             process_coordinates();
             auto t2 = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double,std::milli> elapsed = t2-t1;
-            RCLCPP_INFO(this->get_logger(),"Cluster_time elapsed from receiving point: %f",elapsed);            
+            RCLCPP_INFO(this->get_logger(),"Cluster_time elapsed from receiving point: %f",elapsed.count());            
         } else {
             RCLCPP_WARN(this->get_logger(), "No point cloud received yet");
         }
@@ -177,7 +177,7 @@ private:
         crop.setMin(Eigen::Vector4f(target_point.x - radius, target_point.y - radius, target_point.z - radius, 0));
         crop.setMax(Eigen::Vector4f(target_point.x + radius, target_point.y + radius, target_point.z + radius, 0));
         crop.filter(*cloud_crop);
-        // RCLCPP_INFO(this->get_logger(), "Crop box found with %lu points with size %f", cloud_crop->points.size(),(1.5-(count*0.1)));
+        // RCLCPP_DEBUG(this->get_logger(), "Crop box found with %lu points with size %f", cloud_crop->points.size(),(1.5-(count*0.1)));
 
         // Remove noise using a Statistical Outlier Removal filter
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_sor(new pcl::PointCloud<pcl::PointXYZ>);

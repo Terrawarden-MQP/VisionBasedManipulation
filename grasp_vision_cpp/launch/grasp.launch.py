@@ -7,6 +7,7 @@ from launch.substitutions import LaunchConfiguration
 def generate_launch_description():
     return LaunchDescription([
         # Declare launch arguments for all parameters (dynamic)
+        DeclareLaunchArgument('log_level', default_value='INFO', description='Log verbosity level'),
         DeclareLaunchArgument('cluster_topic', default_value='/detected_cluster', description='Cluster topic name'),
         DeclareLaunchArgument('pointcloud_topic', default_value='/realsense/points', description='Pointcloud topic name'),
         DeclareLaunchArgument('coord_topic', default_value='/target_2d_coords', description='2D centroid target coordinates topic'),
@@ -53,7 +54,8 @@ def generate_launch_description():
                     'curvature': LaunchConfiguration('curvature'),
                     'normal_search_radius': LaunchConfiguration('normal_search_radius'),
                 }
-            ]
+            ],
+            arguments=['--ros-args', '--log-level', LaunchConfiguration('log_level')]
         ),
         Node(
             package='grasp_vision_cpp',
@@ -68,6 +70,7 @@ def generate_launch_description():
                     'visualize': LaunchConfiguration('visualize'),
                     'select_stability_metric': LaunchConfiguration('select_stability_metric'),
                 }
-            ]
+            ],
+            arguments=['--ros-args', '--log-level', LaunchConfiguration('log_level')]
         )
     ])
