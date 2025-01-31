@@ -32,7 +32,7 @@ https://medium.com/@pacogarcia3/calculate-x-y-z-real-world-coordinates-from-imag
 #include <pcl/filters/crop_box.h>
 // #include <pcl/features/boundary.h>
 // #include <pcl/search/kdtree.h>
-#include <pcl/features/normal_3d.h>
+// #include <pcl/features/normal_3d.h>
 // #include <pcl/surface/convex_hull.h>
 // #include <pcl/features/principal_curvatures.h>
 #include <Eigen/Core>
@@ -58,8 +58,6 @@ public:
         this->declare_parameter<int>("min_cluster_size", 100);
         this->declare_parameter<int>("max_cluster_size", 25000);
         this->declare_parameter<double>("target_point_tolerance",0.02);
-        this->declare_parameter<double>("normal_search_radius", 0.03);
-        this->declare_parameter<double>("curvature", 0.01);
 
         // Retrieve ROS parameters
         pointcloud_topic = this->get_parameter("input_pointcloud_topic").as_string();
@@ -78,8 +76,6 @@ public:
         min_cluster_size = this->get_parameter("min_cluster_size").as_int();
         max_cluster_size = this->get_parameter("max_cluster_size").as_int();
         target_point_tolerance = this->get_parameter("target_point_tolerance").as_double();
-        normal_search_radius = this->get_parameter("normal_search_radius").as_double();
-        curvature = this->get_parameter("curvature").as_double();
 
         // Subscriptions + Publishers 
         pointcloud_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
@@ -106,7 +102,7 @@ public:
 
 private:
     std::string pointcloud_topic, coord_topic, cluster_topic, camera_info_topic, header_frame;
-    double crop_radius, sor_stddev_mul_thresh, voxel_leaf_size, ransac_distance_threshold, cluster_tolerance, target_point_tolerance, curvature, normal_search_radius;
+    double crop_radius, sor_stddev_mul_thresh, voxel_leaf_size, ransac_distance_threshold, cluster_tolerance, target_point_tolerance;
     bool VISUALIZE = false;
     int sor_mean_k, ransac_max_iterations, min_cluster_size, max_cluster_size;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_sub_;
@@ -258,27 +254,9 @@ private:
         // Find the object cluster containing this point
         auto cluster = find_object_cluster(cloud_processed, target_point);
         if (cluster) {
-            pcl::PointCloud<pcl::PointXYZ>::Ptr cluster_processed(new pcl::PointCloud<pcl::PointXYZ>);
-
-            // Compute surface normals
-            pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> ne;
-            ne.setInputCloud(cluster);
-            pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
-            ne.setSearchMethod(tree);
-            pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>());
-            ne.setRadiusSearch(normal_search_radius);
-            ne.compute(*cloud_normals);
-
-            // Curvature edge detection (select only stable points)
-            for(int i = 0; i < cluster->size(); i++){
-                if(cloud_normals->points[i].curvature < curvature){ // TODO
-                    cluster_processed->push_back(cluster->points[i]);
-                }
-            }
-
-            RCLCPP_INFO(this->get_logger(), "Cluster found with %lu points", cluster_processed->points.size());
+            RCLCPP_INFO(this->get_logger(), "Cluster found with %lu points", cluster->points.size());
             sensor_msgs::msg::PointCloud2 cluster_msg;
-            pcl::toROSMsg(*cluster_processed, cluster_msg);
+            pcl::toROSMsg(*cluster, cluster_msg);
             cluster_msg.header.frame_id = header_frame;
             cluster_msg.header.stamp = this->now();
             cluster_pub_->publish(cluster_msg); 

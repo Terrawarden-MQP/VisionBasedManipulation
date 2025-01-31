@@ -28,6 +28,7 @@ public:
         this->declare_parameter<double>("max_search_threshold", 0.1);
         this->declare_parameter<bool>("visualize", false);
         this->declare_parameter<int>("select_stability_metric", 1);
+        this->declare_parameter<double>("curvature", 0.01);
 
         // Retrieve ROS parameters
         cluster_topic = this->get_parameter("cluster_topic").as_string();
@@ -37,6 +38,7 @@ public:
         max_search_threshold = this->get_parameter("max_search_threshold").as_double();
         VISUALIZE = this->get_parameter("visualize").as_bool();
         select_stability_metric = this->get_parameter("select_stability_metric").as_int();
+        curvature = this->get_parameter("curvature").as_double();
 
         subscription_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
             cluster_topic, 10, // from extract_cluster
@@ -48,7 +50,7 @@ public:
 
 private:
     std::string cluster_topic;
-    double normal_search_radius, min_search_threshold, max_search_threshold; 
+    double normal_search_radius, min_search_threshold, max_search_threshold, curvature; 
     bool robust_search, VISUALIZE;
     int select_stability_metric;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscription_;
@@ -91,6 +93,18 @@ private:
             return;
         }
 
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cluster_processed(new pcl::PointCloud<pcl::PointXYZ>);
+        pcl::PointCloud<pcl::Normal>::Ptr cloud_normals_processed(new pcl::PointCloud<pcl::Normal>());
+
+        // Curvature edge detection (select only stable points)
+        for(int i = 0; i < cloud->size(); i++){
+            if(cloud_normals->points[i].curvature < curvature){ // TODO
+                cluster_processed->push_back(cloud->points[i]);
+                cloud_normals_processed->push_back(cloud_normals->points[i]);
+            }
+        }        
+        // TODO visualize curvature as separate topic
+
         // Compute centroid
         Eigen::Vector4f center;
         pcl::compute3DCentroid(*cloud, center);
@@ -101,7 +115,7 @@ private:
 
         // Find optimal grasp points
         geometry_msgs::msg::Point grasp_point1, grasp_point2;
-        bool grasp_algorithm = findOptimalGraspPointsQuality(cloud, cloud_normals, grasp_point1, grasp_point2, centroid);
+        bool grasp_algorithm = findOptimalGraspPointsQuality(cluster_processed, cloud_normals_processed, grasp_point1, grasp_point2, centroid);
         if (!grasp_algorithm) {
             RCLCPP_WARN(this->get_logger(), "Failed to find optimal grasp points!");
             return;
