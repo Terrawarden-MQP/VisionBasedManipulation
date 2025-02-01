@@ -29,6 +29,7 @@ public:
         this->declare_parameter<bool>("visualize", false);
         this->declare_parameter<int>("select_stability_metric", 1);
         this->declare_parameter<double>("curvature", 0.01);
+        this->declare_parameter<std::string>("header_frame","camera_link");
 
         // Retrieve ROS parameters
         cluster_topic = this->get_parameter("cluster_topic").as_string();
@@ -39,23 +40,28 @@ public:
         VISUALIZE = this->get_parameter("visualize").as_bool();
         select_stability_metric = this->get_parameter("select_stability_metric").as_int();
         curvature = this->get_parameter("curvature").as_double();
+        header_frame = this->get_parameter("header_frame").as_string();
 
         subscription_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
             cluster_topic, 10, // from extract_cluster
             std::bind(&OptimalGraspNode::graspPlanningCallback, this, std::placeholders::_1));
 
-        normal_marker_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/normal_markers", 10);
-        grasp_marker_publisher_ = this->create_publisher<visualization_msgs::msg::Marker>("/grasp_markers", 10);
+        if(VISUALIZE){
+            normal_marker_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/normal_markers", 10);
+            grasp_marker_publisher_ = this->create_publisher<visualization_msgs::msg::Marker>("/grasp_markers", 10);
+            curvature_publisher_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/visualize/curvature", 10);
+        }
     }
 
 private:
-    std::string cluster_topic;
+    std::string cluster_topic, header_frame;
     double normal_search_radius, min_search_threshold, max_search_threshold, curvature; 
     bool robust_search, VISUALIZE;
     int select_stability_metric;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscription_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr normal_marker_publisher_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr grasp_marker_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr curvature_publisher_;
 
     void graspPlanningCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg)
     {
@@ -98,12 +104,19 @@ private:
 
         // Curvature edge detection (select only stable points)
         for(int i = 0; i < cloud->size(); i++){
-            if(cloud_normals->points[i].curvature < curvature){ // TODO
+            if(cloud_normals->points[i].curvature < curvature){
                 cluster_processed->push_back(cloud->points[i]);
                 cloud_normals_processed->push_back(cloud_normals->points[i]);
             }
         }        
-        // TODO visualize curvature as separate topic
+        
+        if(VISUALIZE){
+            sensor_msgs::msg::PointCloud2 cloud_msg;
+            pcl::toROSMsg(*cluster_processed,cloud_msg);
+            cloud_msg.header.frame_id = header_frame; 
+            cloud_msg.header.stamp = this->now();
+            curvature_publisher_->publish(cloud_msg);
+        }
 
         // Compute centroid
         Eigen::Vector4f center;
