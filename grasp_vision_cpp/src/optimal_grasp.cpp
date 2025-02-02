@@ -167,11 +167,16 @@ private:
         Eigen::Vector3d z = normal.normalized(); // Surface normal as z-axis
         Eigen::Vector3d x, y;
 
+        // Choose an arbitrary "up" vector that is not collinear with z (Gram-Schmidt orthonormalization)
+        Eigen::Vector3d up = (std::abs(z.z()) > 0.9) ? Eigen::Vector3d(1, 0, 0) : Eigen::Vector3d(0, 0, 1);
+
+
         // Orthogonal x-axis (avoid collinearity)
-        if (std::abs(z.x()) > std::abs(z.y()))
-            x = Eigen::Vector3d(-z.z(), 0, z.x()).normalized();
-        else
-            x = Eigen::Vector3d(0, z.z(), -z.y()).normalized();
+        // if (std::abs(z.x()) > std::abs(z.y()))
+        //     x = Eigen::Vector3d(-z.z(), 0, z.x()).normalized();
+        // else
+        //     x = Eigen::Vector3d(0, z.z(), -z.y()).normalized();
+        x = up.cross(z).normalized();
 
         y = z.cross(x); // Cross product y-axis
 
@@ -285,6 +290,14 @@ private:
                     case 3:
                         // grasp isotropy index (1 = isotropic / optimal, 0 = singular configuration)
                         singular_value = svd.singularValues().minCoeff() / svd.singularValues().maxCoeff();
+                        break;
+                    case 4: 
+                        // testing numeric stability in svd selection
+                        singular_value = svd.singularValues().array().abs().minCoeff();
+                        break;
+                    case 5:
+                        // testing robust grasping by weighing multiple metrics
+                        singular_value = 0.5 * svd.singularValues().minCoeff() + 0.5 * svd.singularValues().prod();
                         break;
                     default:
                         RCLCPP_WARN(this->get_logger(),"Stability metric not set");

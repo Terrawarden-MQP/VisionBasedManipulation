@@ -28,7 +28,8 @@ def generate_launch_description():
         DeclareLaunchArgument('normal_search_radius', default_value='0.03', description='Normal search radius'),
         DeclareLaunchArgument('min_search_threshold', default_value='0.02', description='Minimum search threshold'),
         DeclareLaunchArgument('max_search_threshold', default_value='0.1', description='Maximum search threshold'),
-        DeclareLaunchArgument('select_stability_metric', default_value='1', description='1: maximum minimum svd, 2: maximum volume ellipsoid in wrench space, 3: isotropy index'),
+        DeclareLaunchArgument('select_stability_metric', default_value='1', description='1: maximum minimum svd, 2: maximum volume ellipsoid in wrench space,\
+                               3: isotropy index, 4: maximum minimum svd with abs for numeric stability, 5: weighing (1) and (2) equally'),
         DeclareLaunchArgument('variance_neighbors', default_value='4', description='Grasp uncertainty variance neighbors to search'),
         DeclareLaunchArgument('variance_threshold', default_value='0.2', description='Grasp uncertainty variance threshold'),
         Node(
