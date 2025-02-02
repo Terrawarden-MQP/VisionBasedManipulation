@@ -30,6 +30,8 @@ public:
         this->declare_parameter<int>("select_stability_metric", 1);
         this->declare_parameter<double>("curvature", 0.01);
         this->declare_parameter<std::string>("header_frame","camera_link");
+        this->declare_parameter<int>("variance_neighbors", 10);
+        this->declare_parameter<double>("variance_threshold", 0.2);
 
         // Retrieve ROS parameters
         cluster_topic = this->get_parameter("cluster_topic").as_string();
@@ -41,6 +43,8 @@ public:
         select_stability_metric = this->get_parameter("select_stability_metric").as_int();
         curvature = this->get_parameter("curvature").as_double();
         header_frame = this->get_parameter("header_frame").as_string();
+        variance_neighbors = this->get_parameter("variance_neighbors").as_int();
+        variance_threshold = this->get_parameter("variance_threshold").as_double();
 
         subscription_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
             cluster_topic, 10, // from extract_cluster
@@ -55,9 +59,9 @@ public:
 
 private:
     std::string cluster_topic, header_frame;
-    double normal_search_radius, min_search_threshold, max_search_threshold, curvature; 
+    double normal_search_radius, min_search_threshold, max_search_threshold, curvature, variance_threshold; 
     bool robust_search, VISUALIZE;
-    int select_stability_metric;
+    int select_stability_metric, variance_neighbors;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscription_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr normal_marker_publisher_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr grasp_marker_publisher_;
@@ -90,9 +94,9 @@ private:
         pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>());
         ne.setRadiusSearch(normal_search_radius);
         ne.compute(*cloud_normals);
-        if(VISUALIZE){
-            publishNormalMarkers(cloud, cloud_normals,cloud_msg->header);
-        }
+        // if(VISUALIZE){
+        //     publishNormalMarkers(cloud, cloud_normals,cloud_msg->header);
+        // }
 
         if (cloud_normals->points.empty()) {
             RCLCPP_WARN(this->get_logger(), "No normals were computed!");
@@ -109,13 +113,15 @@ private:
                 cloud_normals_processed->push_back(cloud_normals->points[i]);
             }
         }        
+        RCLCPP_INFO(this->get_logger(), "Stable cloud has %lu points", cluster_processed->points.size());
         
         if(VISUALIZE){
-            sensor_msgs::msg::PointCloud2 cloud_msg;
-            pcl::toROSMsg(*cluster_processed,cloud_msg);
-            cloud_msg.header.frame_id = header_frame; 
-            cloud_msg.header.stamp = this->now();
-            curvature_publisher_->publish(cloud_msg);
+            publishNormalMarkers(cluster_processed, cloud_normals_processed,cloud_msg->header);
+            sensor_msgs::msg::PointCloud2 cloud_msg_;
+            pcl::toROSMsg(*cluster_processed,cloud_msg_);
+            cloud_msg_.header.frame_id = header_frame; 
+            cloud_msg_.header.stamp = this->now();
+            curvature_publisher_->publish(cloud_msg_);
         }
 
         // Compute centroid
@@ -243,6 +249,15 @@ private:
                     continue;
                 }
 
+                // Skip if normal variance too great
+                double variance1 = computeNormalVariance(cloud, normals, i, variance_neighbors);
+                double variance2 = computeNormalVariance(cloud, normals, j, variance_neighbors);
+                if(variance1 > variance_threshold || variance2 > variance_threshold){
+                    RCLCPP_DEBUG(this->get_logger(), "Normal variance at index %ld: %f", i,variance1);
+                    RCLCPP_DEBUG(this->get_logger(), "Normal variance at index %ld: %f", j,variance2);
+                    continue;
+                   }
+
                 // Build grasp matrix G for the two contact points
                 Eigen::MatrixXd contact_points(2,3);
                 Eigen::MatrixXd normals(2,3);
@@ -306,6 +321,32 @@ private:
         RCLCPP_INFO(this->get_logger(), "Max Grasp Quality (Min Singular Value): %f", max_quality);
 
         return true;
+    }
+
+    // Helper function to handle uncertainty in grasp selection (robust grasp)
+    // Weights grasp selection based on normal deviation (variance) over neighboring points
+    double computeNormalVariance(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud,const pcl::PointCloud<pcl::Normal>::Ptr &normals, int idx, int k_neighbors){
+        pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
+        tree->setInputCloud(cloud);
+        std::vector<int> pointIdxNKNSearch(k_neighbors);
+        std::vector<float> pointNKNSquaredDistance(k_neighbors);
+        double variance = 0.0;
+        if (tree->nearestKSearch(cloud->points[idx], k_neighbors, pointIdxNKNSearch, pointNKNSquaredDistance) > 0) {
+            Eigen::Vector3d avg_normal(0, 0, 0);
+            for (int i : pointIdxNKNSearch) {
+                avg_normal += Eigen::Vector3d(normals->points[i].normal_x, normals->points[i].normal_y, normals->points[i].normal_z);
+            }
+            avg_normal /= k_neighbors;
+
+            for (int i : pointIdxNKNSearch) {
+                Eigen::Vector3d diff = Eigen::Vector3d(normals->points[i].normal_x, normals->points[i].normal_y, normals->points[i].normal_z) - avg_normal;
+                variance += diff.squaredNorm();
+            }
+        }
+        else{
+            RCLCPP_WARN(this->get_logger(),"AAAAAAAAAAAAAAAAAAAAa");
+        }
+        return variance / k_neighbors;
     }
 
     // ============================= VISUALIZE IN RVIZ =============================
