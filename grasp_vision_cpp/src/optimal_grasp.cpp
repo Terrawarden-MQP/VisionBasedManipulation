@@ -14,6 +14,7 @@
 // #include <cmath>
 #include <sstream>
 #include <chrono>
+#include <geometry_msgs/msg/pose_stamped.hpp>
 
 class OptimalGraspNode : public rclcpp::Node
 {
@@ -32,6 +33,7 @@ public:
         this->declare_parameter<std::string>("header_frame","camera_link");
         this->declare_parameter<int>("variance_neighbors", 10);
         this->declare_parameter<double>("variance_threshold", 0.2);
+        this->declare_parameter<std::string>("pos_topic","grasp_pose");
 
         // Retrieve ROS parameters
         cluster_topic = this->get_parameter("cluster_topic").as_string();
@@ -45,10 +47,12 @@ public:
         header_frame = this->get_parameter("header_frame").as_string();
         variance_neighbors = this->get_parameter("variance_neighbors").as_int();
         variance_threshold = this->get_parameter("variance_threshold").as_double();
+        pos_topic = this->get_parameter("pos_topic").as_string();
 
         subscription_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
             cluster_topic, 10, // from extract_cluster
             std::bind(&OptimalGraspNode::graspPlanningCallback, this, std::placeholders::_1));
+        pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(pos_topic, 10);
 
         if(VISUALIZE){
             normal_marker_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/normal_markers", 10);
@@ -58,7 +62,7 @@ public:
     }
 
 private:
-    std::string cluster_topic, header_frame;
+    std::string cluster_topic, header_frame,  pos_topic;
     double normal_search_radius, min_search_threshold, max_search_threshold, curvature, variance_threshold; 
     bool robust_search, VISUALIZE;
     int select_stability_metric, variance_neighbors;
@@ -66,6 +70,7 @@ private:
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr normal_marker_publisher_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr grasp_marker_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr curvature_publisher_;
+    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_publisher_;
 
     void graspPlanningCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg)
     {
@@ -141,13 +146,66 @@ private:
         }
 
         // Publish grasp markers for visualization
-        publishGraspMarkers(grasp_point1, grasp_point2, cloud_msg->header);
+        if(VISUALIZE){
+            publishGraspMarkers(grasp_point1, grasp_point2, cloud_msg->header);
+        }
+
+        // Publish grasp position and orientation
+        publishGraspPose(grasp_point1, grasp_point2, cloud_msg->header);
 
         // Timer
         auto t2 = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double,std::milli> elapsed = t2-t1;
         RCLCPP_INFO(this->get_logger(),"Grasp time elapsed from receiving cloud: %f",elapsed.count());
 
+    }
+
+    void publishGraspPose(
+        const geometry_msgs::msg::Point& grasp_point1, 
+        const geometry_msgs::msg::Point& grasp_point2, 
+        const std_msgs::msg::Header& header) 
+    {
+        // Compute the grasp position (midpoint)
+        Eigen::Vector3d p1(grasp_point1.x, grasp_point1.y, grasp_point1.z);
+        Eigen::Vector3d p2(grasp_point2.x, grasp_point2.y, grasp_point2.z);
+        Eigen::Vector3d grasp_position = (p1 + p2) / 2.0;
+
+        // Compute the grasp approach direction (z-axis)
+        Eigen::Vector3d grasp_z = (p2 - p1).normalized();
+
+        // Define an arbitrary x-axis perpendicular to grasp_z
+        Eigen::Vector3d grasp_x;
+        if (std::abs(grasp_z.x()) > std::abs(grasp_z.y())) {
+            grasp_x = Eigen::Vector3d(-grasp_z.z(), 0, grasp_z.x()).normalized();
+        } else {
+            grasp_x = Eigen::Vector3d(0, grasp_z.z(), -grasp_z.y()).normalized();
+        }
+
+        // Compute the y-axis (perpendicular to x and z)
+        Eigen::Vector3d grasp_y = grasp_z.cross(grasp_x).normalized();
+
+        // Construct the rotation matrix
+        Eigen::Matrix3d R;
+        R.col(0) = grasp_x;
+        R.col(1) = grasp_y;
+        R.col(2) = grasp_z;
+
+        // Convert rotation matrix to quaternion
+        Eigen::Quaterniond quat(R);
+
+        // Fill PoseStamped message
+        geometry_msgs::msg::PoseStamped grasp_pose_msg;
+        grasp_pose_msg.header = header;
+        grasp_pose_msg.pose.position.x = grasp_position.x();
+        grasp_pose_msg.pose.position.y = grasp_position.y();
+        grasp_pose_msg.pose.position.z = grasp_position.z();
+        grasp_pose_msg.pose.orientation.x = quat.x();
+        grasp_pose_msg.pose.orientation.y = quat.y();
+        grasp_pose_msg.pose.orientation.z = quat.z();
+        grasp_pose_msg.pose.orientation.w = quat.w();
+
+        // Publish the grasp pose
+        pose_publisher_->publish(grasp_pose_msg);
     }
 
     // ============================= GRASP MATRIX =============================

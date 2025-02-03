@@ -32,6 +32,7 @@ def generate_launch_description():
                                3: isotropy index, 4: maximum minimum svd with abs for numeric stability, 5: weighing (1) and (2) equally'),
         DeclareLaunchArgument('variance_neighbors', default_value='4', description='Grasp uncertainty variance neighbors to search'),
         DeclareLaunchArgument('variance_threshold', default_value='0.2', description='Grasp uncertainty variance threshold'),
+        DeclareLaunchArgument('pos_topic', default_value='grasp_pose', description='Grasp pose topic'),
         Node(
             package='grasp_vision_cpp',
             executable='extract_cluster',
@@ -74,6 +75,7 @@ def generate_launch_description():
                     'select_stability_metric': LaunchConfiguration('select_stability_metric'),
                     'variance_neighbors': LaunchConfiguration('variance_neighbors'),
                     'variance_threshold': LaunchConfiguration('variance_threshold'),
+                    'pos_topic': LaunchConfiguration('pos_topic'),
                 }
             ],
             arguments=['--ros-args', '--log-level', LaunchConfiguration('log_level')]
