@@ -1,0 +1,28 @@
+{
+    "python.autoComplete.extraPaths": [
+        "/home/joisie/Desktop/ros_ws/install/wpi_drone/lib/python3.10/site-packages",
+        "/home/joisie/Desktop/ros_ws/install/trt_live_detector/lib/python3.10/site-packages",
+        "/home/joisie/Desktop/ros_ws/install/trt_live_classifier/lib/python3.10/site-packages",
+        "/home/joisie/Desktop/ros_ws/install/px4_ros_com/local/lib/python3.10/dist-packages",
+        "/home/joisie/Desktop/ros_ws/install/px4_WPI_drone/lib/python3.10/site-packages",
+        "/home/joisie/Desktop/ros_ws/install/px4_msgs/local/lib/python3.10/dist-packages",
+        "/home/joisie/Desktop/ros_ws/install/live_detection/lib/python3.10/site-packages",
+        "/home/joisie/Desktop/ros_ws/install/live_classifier/lib/python3.10/site-packages",
+        "/home/joisie/Desktop/ros_ws/install/joisie_vision/lib/python3.10/site-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/home/joisie/Desktop/ros_ws/install/wpi_drone/lib/python3.10/site-packages",
+        "/home/joisie/Desktop/ros_ws/install/trt_live_detector/lib/python3.10/site-packages",
+        "/home/joisie/Desktop/ros_ws/install/trt_live_classifier/lib/python3.10/site-packages",
+        "/home/joisie/Desktop/ros_ws/install/px4_ros_com/local/lib/python3.10/dist-packages",
+        "/home/joisie/Desktop/ros_ws/install/px4_WPI_drone/lib/python3.10/site-packages",
+        "/home/joisie/Desktop/ros_ws/install/px4_msgs/local/lib/python3.10/dist-packages",
+        "/home/joisie/Desktop/ros_ws/install/live_detection/lib/python3.10/site-packages",
+        "/home/joisie/Desktop/ros_ws/install/live_classifier/lib/python3.10/site-packages",
+        "/home/joisie/Desktop/ros_ws/install/joisie_vision/lib/python3.10/site-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ]
+}

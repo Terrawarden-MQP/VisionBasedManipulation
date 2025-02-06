@@ -1,0 +1,27 @@
+{
+    "configurations": [
+        {
+            "browse": {
+                "databaseFilename": "${default}",
+                "limitSymbolsToIncludedHeaders": false
+            },
+            "includePath": [
+                "/home/joisie/Desktop/ros_ws/install/px4_ros_com/include/**",
+                "/home/joisie/Desktop/ros_ws/install/px4_msgs/include/**",
+                "/home/joisie/Desktop/realsense2_camera/install/realsense2_camera/include/**",
+                "/opt/ros/humble/include/**",
+                "/opt/ros/humble/lib/**",
+                "/opt/ros/humble/include/**",
+                "/home/joisie/Desktop/ros_ws/src/TerraWardenDrone/Micro-XRCE-DDS-Agent/include/**",
+                "/home/joisie/Desktop/ros_ws/src/TerraWardenDrone/px4_ros_com/include/**",
+                "/usr/include/**"
+            ],
+            "name": "ROS",
+            "intelliSenseMode": "gcc-arm64",
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "gnu11",
+            "cppStandard": "c++14"
+        }
+    ],
+    "version": 4
+}
