@@ -42,9 +42,9 @@ class PointCloudClusterDetector : public rclcpp::Node {
 public:
     PointCloudClusterDetector() : Node("extract_cluster") {
         // ROS parameters
-        this->declare_parameter<std::string>("input_pointcloud_topic", "/realsense/points");
-        this->declare_parameter<std::string>("input_coord_topic", "/target_2d_coords");
-        this->declare_parameter<std::string>("output_cluster_topic", "/detected_cluster");
+        this->declare_parameter<std::string>("pointcloud_topic", "/realsense/points");
+        this->declare_parameter<std::string>("coord_topic", "/target_2d_coords");
+        this->declare_parameter<std::string>("cluster_topic", "/detected_cluster");
         this->declare_parameter<std::string>("camera_info_topic", "/realsense/camera_info");
         this->declare_parameter<bool>("visualize", false);
         this->declare_parameter<double>("crop_radius", 0.2);
@@ -60,9 +60,9 @@ public:
         this->declare_parameter<double>("target_point_tolerance",0.02);
 
         // Retrieve ROS parameters
-        pointcloud_topic = this->get_parameter("input_pointcloud_topic").as_string();
-        coord_topic = this->get_parameter("input_coord_topic").as_string();
-        cluster_topic = this->get_parameter("output_cluster_topic").as_string();
+        pointcloud_topic = this->get_parameter("pointcloud_topic").as_string();
+        coord_topic = this->get_parameter("coord_topic").as_string();
+        cluster_topic = this->get_parameter("cluster_topic").as_string();
         camera_info_topic = this->get_parameter("camera_info_topic").as_string();
         VISUALIZE = this->get_parameter("visualize").as_bool();
         crop_radius = this->get_parameter("crop_radius").as_double();
