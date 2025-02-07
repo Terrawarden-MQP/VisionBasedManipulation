@@ -14,7 +14,7 @@ find_package(pcl_conversions REQUIRED)
 find_package(pcl_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 
-install(DIRECTORY launch
+install(DIRECTORY launch rviz
   DESTINATION share/${PROJECT_NAME}) 
 
 if(BUILD_TESTING)
