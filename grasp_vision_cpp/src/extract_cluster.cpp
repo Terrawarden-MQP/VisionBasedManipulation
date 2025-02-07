@@ -320,6 +320,7 @@ private:
         std::vector<pcl::PointIndices> cluster_indices;
         ec.setInputCloud(cloud_filtered);
         ec.extract(cluster_indices);
+        RCLCPP_DEBUG(this->get_logger(), "Clustering found something with %lu indices", cluster_indices.size());
 
         // Check if target point is in any of the clusters
         for (const auto& indices : cluster_indices) {
