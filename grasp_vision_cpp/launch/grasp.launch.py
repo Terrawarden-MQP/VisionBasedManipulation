@@ -20,7 +20,7 @@ def generate_launch_description():
         DeclareLaunchArgument('voxel_leaf_size', default_value='0.01', description='Voxel leaf size'),
         DeclareLaunchArgument('ransac_max_iterations', default_value='1000', description='RANSAC max iterations'),
         DeclareLaunchArgument('ransac_distance_threshold', default_value='0.01', description='RANSAC distance threshold'),
-        DeclareLaunchArgument('header_frame', default_value='camera_link', description='Frame of reference for the header'),
+        DeclareLaunchArgument('header_frame', default_value='camera_depth_optical_frame', description='Frame of reference for the header'),
         DeclareLaunchArgument('cluster_tolerance', default_value='0.02', description='Cluster tolerance'),
         DeclareLaunchArgument('min_cluster_size', default_value='100', description='Minimum cluster size'),
         DeclareLaunchArgument('max_cluster_size', default_value='25000', description='Maximum cluster size'),

@@ -56,7 +56,7 @@ public:
         this->declare_parameter<double>("voxel_leaf_size", 0.01);
         this->declare_parameter<int>("ransac_max_iterations", 1000);
         this->declare_parameter<double>("ransac_distance_threshold", 0.01);
-        this->declare_parameter<std::string>("header_frame","camera_link");
+        this->declare_parameter<std::string>("header_frame","camera_depth_optical_frame");
         this->declare_parameter<double>("cluster_tolerance", 0.02);
         this->declare_parameter<int>("min_cluster_size", 100);
         this->declare_parameter<int>("max_cluster_size", 25000);
