@@ -47,7 +47,8 @@ public:
         this->declare_parameter<std::string>("pointcloud_topic", "/camera/camera/depth/color/points");
         this->declare_parameter<std::string>("coord_topic", "/target_2d_coords");
         this->declare_parameter<std::string>("cluster_topic", "/detected_cluster");
-        this->declare_parameter<std::string>("camera_info_topic", "/camera/camera/depth/camera_info");
+        this->declare_parameter<std::string>("camera_info_topic_depth", "/camera/camera/depth/camera_info");
+        this->declare_parameter<std::string>("camera_info_topic_color", "/camera/camera/color/camera_info");
         this->declare_parameter<std::string>("camera_depth_topic", "/camera/camera/depth/image_rect_raw");
         this->declare_parameter<bool>("visualize", false);
         this->declare_parameter<double>("crop_radius", 0.2);
@@ -66,7 +67,8 @@ public:
         pointcloud_topic = this->get_parameter("pointcloud_topic").as_string();
         coord_topic = this->get_parameter("coord_topic").as_string();
         cluster_topic = this->get_parameter("cluster_topic").as_string();
-        camera_info_topic = this->get_parameter("camera_info_topic").as_string();
+        camera_info_topic_depth = this->get_parameter("camera_info_topic_depth").as_string();
+        camera_info_topic_color = this->get_parameter("camera_info_topic_color").as_string();
         camera_depth_topic = this->get_parameter("camera_depth_topic").as_string();
         VISUALIZE = this->get_parameter("visualize").as_bool();
         crop_radius = this->get_parameter("crop_radius").as_double();
@@ -86,18 +88,31 @@ public:
             pointcloud_topic, 10, std::bind(&PointCloudClusterDetector::pointcloud_callback, this, std::placeholders::_1));
         coord_sub_ = this->create_subscription<geometry_msgs::msg::Point>(
             coord_topic, 10, std::bind(&PointCloudClusterDetector::coord_callback, this, std::placeholders::_1));
-        camera_info_subscription_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
-            camera_info_topic, 10, 
+        camera_info_depth_subscription_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
+            camera_info_topic_depth, 10, 
             [this](const sensor_msgs::msg::CameraInfo::SharedPtr msg) {
                 RCLCPP_INFO(this->get_logger(), "Camera depth image width: %d, height: %d", msg->width, msg->height);
-                image_width_ = msg->width;
-                image_height_ = msg->height;
+                image_width_depth_ = msg->width;
+                image_height_depth_ = msg->height;
                 fx_ = msg->k[0];  // Focal length x
                 fy_ = msg->k[4];  // Focal length y
                 cx_ = msg->k[2];  // Optical center x
                 cy_ = msg->k[5];  // Optical center y
                 // Unsubscribe after receiving the data once
-                camera_info_subscription_.reset();
+                camera_info_depth_subscription_.reset();
+            });
+        camera_info_color_subscription_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
+            camera_info_topic_color, 10, 
+            [this](const sensor_msgs::msg::CameraInfo::SharedPtr msg) {
+                RCLCPP_INFO(this->get_logger(), "Camera color image width: %d, height: %d", msg->width, msg->height);
+                image_width_color_ = msg->width;
+                image_height_color_ = msg->height;
+                fx_ = msg->k[0];  // Focal length x
+                fy_ = msg->k[4];  // Focal length y
+                cx_ = msg->k[2];  // Optical center x
+                cy_ = msg->k[5];  // Optical center y
+                // Unsubscribe after receiving the data once
+                camera_info_color_subscription_.reset();
             });
         camera_depth_subscription_ = this->create_subscription<sensor_msgs::msg::Image>(
             camera_depth_topic, 10, std::bind(&PointCloudClusterDetector::depth_img_callback, this, std::placeholders::_1));
@@ -111,20 +126,20 @@ public:
     }
 
 private:
-    std::string pointcloud_topic, coord_topic, cluster_topic, camera_info_topic, camera_depth_topic, header_frame;
+    std::string pointcloud_topic, coord_topic, cluster_topic, camera_info_topic_depth, camera_info_topic_color, camera_depth_topic, header_frame;
     double crop_radius, sor_stddev_mul_thresh, voxel_leaf_size, ransac_distance_threshold, cluster_tolerance, target_point_tolerance;
     double fx_, fy_, cx_, cy_;
     bool VISUALIZE = false;
     int sor_mean_k, ransac_max_iterations, min_cluster_size, max_cluster_size;
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_sub_;
     rclcpp::Subscription<geometry_msgs::msg::Point>::SharedPtr coord_sub_;
-    rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_subscription_;
+    rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_color_subscription_, camera_info_depth_subscription_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr camera_depth_subscription_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cluster_pub_, crop_pub_, sor_pub_, voxel_pub_, plane_pub_;    
     sensor_msgs::msg::PointCloud2::SharedPtr pointcloud_data_;
     sensor_msgs::msg::Image::SharedPtr depth_img_data_;
     std::pair<int, int> latest_2d_point_;
-    int image_width_, image_height_;
+    int image_width_depth_, image_height_depth_, image_width_color_, image_height_color_;
 
     void pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
         RCLCPP_DEBUG(this->get_logger(), "Point cloud received!");
@@ -140,24 +155,21 @@ private:
         latest_2d_point_ = std::make_pair(static_cast<int>(msg->x), static_cast<int>(msg->y));
         RCLCPP_DEBUG(this->get_logger(), "New 2D point received: (%d, %d)", latest_2d_point_.first, latest_2d_point_.second);
 
-        if (pointcloud_data_ && depth_img_data_) {
+        if (pointcloud_data_ && depth_img_data_ && image_width_depth_ && image_width_color_) {
             auto t1 = std::chrono::high_resolution_clock::now();
             process_coordinates();
             auto t2 = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double,std::milli> elapsed = t2-t1;
             RCLCPP_INFO(this->get_logger(),"Cluster_time elapsed from receiving point: %f",elapsed.count());            
         } else {
-            RCLCPP_WARN(this->get_logger(), "No point cloud or no depth image received yet");
+            RCLCPP_WARN(this->get_logger(), "No point cloud or no depth image received yet or missing depth / color camera info");
         }
     }
 
     void process_coordinates() {
-        int u = latest_2d_point_.first;
-        int v = latest_2d_point_.second;
-
-        // Get dimensions of the image
-        int width = image_width_; 
-        int height = image_height_; 
+        // Get 2D coordinate in color image and convert to depth image
+        int u = latest_2d_point_.first * image_width_depth_/image_width_color_;
+        int v = latest_2d_point_.second * image_height_depth_/image_height_color_;
 
         // Convert ROS to OpenCV image
         cv_bridge::CvImagePtr cv_ptr;
