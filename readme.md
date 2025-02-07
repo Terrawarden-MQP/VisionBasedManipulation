@@ -11,7 +11,7 @@ Simulated environment for testing pipeline of getting 2D coordinates of an objec
 2) To easily move camera, run this and stop it when in an ideal spot: `ros2 run vbm_project_env move_camera.py`
 3) Publish a point representing the center of the detected object in 2D (change x/y as necessary): `ros2 topic pub /target_2d_coords geometry_msgs/Point "{x: 320, y: 240, z: 0}"`
 
-    a) To visualize the 3D point, get the point from step 4, then run `ros2 topic pub /target_coords geometry_msgs/msg/PointStamped "{header: {stamp: {sec: 0, nanosec: 0}, frame_id: 'camera_link'}, point: {x: 0.001, y: 0.001, z: 0.632}}"` and open the cooresponding RViz file.
+    a) To visualize the 3D point, get the point from step 4, then run `ros2 topic pub /target_coords geometry_msgs/msg/PointStamped "{header: {stamp: {sec: 0, nanosec: 0}, frame_id: 'camera_depth_optical_frame'}, point: {x: 0.001, y: 0.001, z: 0.632}}"` and open the cooresponding RViz file.
 4) Launch the extract cluster and optimal grasp nodes: `ros2 launch grasp_vision_cpp grasp.launch.py`, append `--show-arguments` to see optional ROS arguemnts. To launch individually: 
 
     a) Run point cluster extractor node: `ros2 run grasp_vision_cpp extract_cluster`

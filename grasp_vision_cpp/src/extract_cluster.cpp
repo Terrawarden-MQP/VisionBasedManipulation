@@ -204,7 +204,7 @@ private:
         crop.setMin(Eigen::Vector4f(target_point.x - radius, target_point.y - radius, target_point.z - radius, 0));
         crop.setMax(Eigen::Vector4f(target_point.x + radius, target_point.y + radius, target_point.z + radius, 0));
         crop.filter(*cloud_crop);
-        // RCLCPP_DEBUG(this->get_logger(), "Crop box found with %lu points with size %f", cloud_crop->points.size(),(1.5-(count*0.1)));
+        RCLCPP_DEBUG(this->get_logger(), "Crop box found with %lu points", cloud_crop->points.size());
 
         // Remove noise using a Statistical Outlier Removal filter
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_sor(new pcl::PointCloud<pcl::PointXYZ>);
@@ -213,6 +213,7 @@ private:
         sor.setMeanK(sor_mean_k);  // Number of neighbors to analyze for each point
         sor.setStddevMulThresh(sor_stddev_mul_thresh);  // Standard deviation multiplier
         sor.filter(*cloud_sor);
+        RCLCPP_DEBUG(this->get_logger(), "SOR filtered, remaining cloud found with %lu points", cloud_sor->points.size());
 
         // Downsample point cloud using VoxelGrid filter
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_voxel(new pcl::PointCloud<pcl::PointXYZ>);
@@ -220,6 +221,7 @@ private:
         vg.setInputCloud(cloud_sor);
         vg.setLeafSize(voxel_leaf_size,voxel_leaf_size,voxel_leaf_size); 
         vg.filter(*cloud_voxel);
+        RCLCPP_DEBUG(this->get_logger(), "Voxel sampled with %lu points", cloud_voxel->points.size());
 
         // Remove ground (plane segmentation)
         pcl::SACSegmentation<pcl::PointXYZ> seg;
@@ -243,6 +245,7 @@ private:
         extract.setIndices(inliers);
         extract.setNegative (true); // false = return plane
         extract.filter (*cloud_processed);
+        RCLCPP_DEBUG(this->get_logger(), "Plane removed, cloud found with %lu points", cloud_processed->points.size());
 
         if(VISUALIZE){
             pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_processed_inverted(new pcl::PointCloud<pcl::PointXYZ>);
