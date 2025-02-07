@@ -13,6 +13,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(pcl_conversions REQUIRED)
 find_package(pcl_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
+find_package(cv_bridge REQUIRED)
 
 install(DIRECTORY launch rviz
   DESTINATION share/${PROJECT_NAME}) 
@@ -30,7 +31,7 @@ if(BUILD_TESTING)
 endif()
 
 add_executable(extract_cluster src/extract_cluster.cpp)
-ament_target_dependencies(extract_cluster rclcpp sensor_msgs geometry_msgs pcl_conversions pcl_msgs)
+ament_target_dependencies(extract_cluster rclcpp sensor_msgs geometry_msgs pcl_conversions pcl_msgs cv_bridge)
 
 add_executable(optimal_grasp src/optimal_grasp.cpp)
 ament_target_dependencies(optimal_grasp rclcpp sensor_msgs geometry_msgs pcl_conversions pcl_msgs visualization_msgs)

@@ -38,6 +38,7 @@ https://medium.com/@pacogarcia3/calculate-x-y-z-real-world-coordinates-from-imag
 // #include <pcl/features/principal_curvatures.h>
 #include <Eigen/Core>
 #include <chrono>
+#include <cv_bridge/cv_bridge.h>
 
 class PointCloudClusterDetector : public rclcpp::Node {
 public:
@@ -158,21 +159,23 @@ private:
         int width = image_width_; 
         int height = image_height_; 
 
-        // Calculate index within point cloud array
-        int index = v * width + u;
-
-        float depth_scale = 0.001;  // Convert from mm to meters
-
-        if (index >= static_cast<int>(depth_img_data_->data.size()) || index < 0) {
-            RCLCPP_WARN(this->get_logger(), "Index %d is out of bounds for depth image data %ld", index, depth_img_data_->data.size());
+        // Convert ROS to OpenCV image
+        cv_bridge::CvImagePtr cv_ptr;
+        try{
+            cv_ptr = cv_bridge::toCvCopy(depth_img_data_, sensor_msgs::image_encodings::TYPE_16UC1);
+        } catch(cv_bridge::Exception &e){
+            RCLCPP_ERROR(this->get_logger(), "CV Bridge error: %s", e.what());
             return;
-        } 
+        }
+
+        // Depth value
+        float depth_scale = 0.001;  // Convert from mm to meters
+        double depth_value = cv_ptr->image.at<uint16_t>(v,u) * depth_scale;
 
         // Retrieve the 3D point corresponding to the 2D coordinates
         // Pinhole camera model
-        double depth_value = depth_img_data_->data[index] * depth_scale;
-        if(depth_value < 0.2){ // check for erroneous results
-            RCLCPP_WARN(this->get_logger(), "Invalid depth %.3f at index %d",depth_value, index);
+        if(depth_value < 0.15){ // check for erroneous results
+            RCLCPP_WARN(this->get_logger(), "Invalid depth %.3f",depth_value);
             return;
         }
         double x = (u - cx_) * depth_value / fx_;
