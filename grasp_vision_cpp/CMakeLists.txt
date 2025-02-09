@@ -14,6 +14,7 @@ find_package(pcl_conversions REQUIRED)
 find_package(pcl_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
+# find_package(realsense2 REQUIRED)
 
 install(DIRECTORY launch rviz
   DESTINATION share/${PROJECT_NAME}) 

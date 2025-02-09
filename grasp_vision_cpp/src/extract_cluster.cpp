@@ -18,6 +18,7 @@ https://medium.com/@pacogarcia3/calculate-x-y-z-real-world-coordinates-from-imag
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <geometry_msgs/msg/point.hpp>
+#include <geometry_msgs/msg/point_stamped.hpp>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
@@ -39,6 +40,7 @@ https://medium.com/@pacogarcia3/calculate-x-y-z-real-world-coordinates-from-imag
 #include <Eigen/Core>
 #include <chrono>
 #include <cv_bridge/cv_bridge.h>
+// #include <sstream>
 
 class PointCloudClusterDetector : public rclcpp::Node {
 public:
@@ -118,6 +120,7 @@ public:
             camera_depth_topic, 10, std::bind(&PointCloudClusterDetector::depth_img_callback, this, std::placeholders::_1));
         cluster_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(cluster_topic, 10);
         if(VISUALIZE){
+            point_pub_ = this->create_publisher<geometry_msgs::msg::PointStamped>("/target_coords", 10);
             crop_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/visualize/crop", 10);
             sor_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/visualize/sor", 10);
             voxel_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/visualize/voxel", 10);
@@ -136,6 +139,7 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_color_subscription_, camera_info_depth_subscription_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr camera_depth_subscription_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cluster_pub_, crop_pub_, sor_pub_, voxel_pub_, plane_pub_;    
+    rclcpp::Publisher<geometry_msgs::msg::PointStamped>::SharedPtr point_pub_;
     sensor_msgs::msg::PointCloud2::SharedPtr pointcloud_data_;
     sensor_msgs::msg::Image::SharedPtr depth_img_data_;
     std::pair<int, int> latest_2d_point_;
@@ -166,6 +170,35 @@ private:
         }
     }
 
+    /*
+    // Function to compute the average depth within a window around (u, v)
+    double get_average_depth(const cv::Mat& depth_image, int u, int v, int window_size = 5) {
+        int valid_count = 0;
+        double depth_sum = 0.0;
+
+        // Iterate over the window of size +/- window_size around (u, v)
+        for (int i = u - window_size; i <= u + window_size; ++i) {
+            for (int j = v - window_size; j <= v + window_size; ++j) {
+                // Check if (i, j) is within bounds of the image
+                if (i >= 0 && i < depth_image.cols && j >= 0 && j < depth_image.rows) {
+                    uint16_t depth_value = depth_image.at<uint16_t>(j, i);
+                    if (depth_value > 0) { // Only consider non-zero depth values
+                        depth_sum += depth_value;
+                        valid_count++;
+                    }
+                }
+            }
+        }
+
+        // If there are no valid depth values, return 0 (or you could handle this case differently)
+        if (valid_count == 0) {
+            return 0.0;
+        }
+
+        // Return the average depth value (converted to meters if necessary)
+        return (depth_sum / valid_count) * 0.001; // Assuming depth values are in mm, convert to meters
+    }*/
+
     void process_coordinates() {
         // Get 2D coordinate in color image and convert to depth image
         int u = latest_2d_point_.first * image_width_depth_/image_width_color_;
@@ -183,20 +216,30 @@ private:
         // Depth value
         float depth_scale = 0.001;  // Convert from mm to meters
         double depth_value = cv_ptr->image.at<uint16_t>(v,u) * depth_scale;
+        // double depth_value = get_average_depth(cv_ptr->image, u, v);
 
         // Retrieve the 3D point corresponding to the 2D coordinates
         // Pinhole camera model
         if(depth_value < 0.15){ // check for erroneous results
-            RCLCPP_WARN(this->get_logger(), "Invalid depth %.3f",depth_value);
+            RCLCPP_WARN(this->get_logger(), "Invalid depth %.3f with point (%d, %d)",depth_value, u, v);
+            // Print the depth matrix
+            // RCLCPP_DEBUG(this->get_logger(), "Depth image:\n%s", (std::ostringstream() << cv_ptr->image).str().c_str());
             return;
         }
         double x = (u - cx_) * depth_value / fx_;
         double y = (v - cy_) * depth_value / fy_;
         pcl::PointXYZ target_point = pcl::PointXYZ(x,y,depth_value);
-        // if (!std::isfinite(target_point.x) || !std::isfinite(target_point.y) || !std::isfinite(target_point.z)) {
-        //     RCLCPP_WARN(this->get_logger(), "Invalid 3D point (%.3f, %.3f, %.3f) at index %d",target_point.x, target_point.y, target_point.z, index);
-        //     return;
-        // }
+        // Publish 3D point
+        if(VISUALIZE){
+            geometry_msgs::msg::PointStamped msg;
+            msg.header.frame_id = header_frame;
+            msg.header.stamp.nanosec = 0;
+            msg.header.stamp.sec = 0;
+            msg.point.x = x;
+            msg.point.y = y;
+            msg.point.z = depth_value;
+            point_pub_->publish(msg);
+        }
 
         RCLCPP_INFO(this->get_logger(), "Converted 3D Point: (%.3f, %.3f, %.3f)", target_point.x, target_point.y, target_point.z);
 
