@@ -15,6 +15,8 @@ find_package(pcl_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 # find_package(realsense2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 install(DIRECTORY launch rviz
   DESTINATION share/${PROJECT_NAME}) 
@@ -32,7 +34,7 @@ if(BUILD_TESTING)
 endif()
 
 add_executable(extract_cluster src/extract_cluster.cpp)
-ament_target_dependencies(extract_cluster rclcpp sensor_msgs geometry_msgs pcl_conversions pcl_msgs cv_bridge)
+ament_target_dependencies(extract_cluster rclcpp sensor_msgs geometry_msgs pcl_conversions pcl_msgs cv_bridge tf2_ros tf2_geometry_msgs)
 
 add_executable(optimal_grasp src/optimal_grasp.cpp)
 ament_target_dependencies(optimal_grasp rclcpp sensor_msgs geometry_msgs pcl_conversions pcl_msgs visualization_msgs)

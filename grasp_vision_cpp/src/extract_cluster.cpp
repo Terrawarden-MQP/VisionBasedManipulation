@@ -41,6 +41,9 @@ https://medium.com/@pacogarcia3/calculate-x-y-z-real-world-coordinates-from-imag
 #include <chrono>
 #include <cv_bridge/cv_bridge.h>
 // #include <sstream>
+#include "tf2_ros/transform_listener.h"
+#include "tf2_ros/buffer.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp" 
 
 class PointCloudClusterDetector : public rclcpp::Node {
 public:
@@ -60,6 +63,7 @@ public:
         this->declare_parameter<int>("ransac_max_iterations", 1000);
         this->declare_parameter<double>("ransac_distance_threshold", 0.01);
         this->declare_parameter<std::string>("header_frame","camera_depth_optical_frame");
+        this->declare_parameter<std::string>("header_frame_drone","drone_frame");
         this->declare_parameter<double>("cluster_tolerance", 0.02);
         this->declare_parameter<int>("min_cluster_size", 100);
         this->declare_parameter<int>("max_cluster_size", 25000);
@@ -80,7 +84,7 @@ public:
         ransac_max_iterations = this->get_parameter("ransac_max_iterations").as_int();
         ransac_distance_threshold = this->get_parameter("ransac_distance_threshold").as_double();
         header_frame = this->get_parameter("header_frame").as_string();
-        cluster_tolerance = this->get_parameter("cluster_tolerance").as_double();
+        header_frame_drone = this->get_parameter("header_frame_drone").as_string();        cluster_tolerance = this->get_parameter("cluster_tolerance").as_double();
         min_cluster_size = this->get_parameter("min_cluster_size").as_int();
         max_cluster_size = this->get_parameter("max_cluster_size").as_int();
         target_point_tolerance = this->get_parameter("target_point_tolerance").as_double();
@@ -126,10 +130,14 @@ public:
             voxel_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/visualize/voxel", 10);
             plane_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/visualize/plane", 10);        
         }
+
+        // Transforms
+        tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
+        tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
     }
 
 private:
-    std::string pointcloud_topic, coord_topic, cluster_topic, camera_info_topic_depth, camera_info_topic_color, camera_depth_topic, header_frame;
+    std::string pointcloud_topic, coord_topic, cluster_topic, camera_info_topic_depth, camera_info_topic_color, camera_depth_topic, header_frame, header_frame_drone;
     double crop_radius, sor_stddev_mul_thresh, voxel_leaf_size, ransac_distance_threshold, cluster_tolerance, target_point_tolerance;
     double fx_, fy_, cx_, cy_;
     bool VISUALIZE = false;
@@ -144,6 +152,8 @@ private:
     sensor_msgs::msg::Image::SharedPtr depth_img_data_;
     std::pair<int, int> latest_2d_point_;
     int image_width_depth_, image_height_depth_, image_width_color_, image_height_color_;
+    std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+    std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
 
     void pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
         RCLCPP_DEBUG(this->get_logger(), "Point cloud received!");
@@ -231,14 +241,15 @@ private:
         pcl::PointXYZ target_point = pcl::PointXYZ(x,y,depth_value);
         // Publish 3D point
         if(VISUALIZE){
-            geometry_msgs::msg::PointStamped msg;
+            geometry_msgs::msg::PointStamped msg, msg_tf2;
             msg.header.frame_id = header_frame;
             msg.header.stamp.nanosec = 0;
             msg.header.stamp.sec = 0;
             msg.point.x = x;
             msg.point.y = y;
             msg.point.z = depth_value;
-            point_pub_->publish(msg);
+            msg_tf2 = transform_point(msg);
+            point_pub_->publish(msg_tf2);
         }
 
         RCLCPP_INFO(this->get_logger(), "Converted 3D Point: (%.3f, %.3f, %.3f)", target_point.x, target_point.y, target_point.z);
@@ -328,15 +339,25 @@ private:
             extract.filter (*cloud_processed_inverted);
 
             sensor_msgs::msg::PointCloud2 cloud_msg;
-            pcl::toROSMsg(*cloud_crop, cloud_msg);
-            cloud_msg.header.frame_id = header_frame; 
+            pcl::toROSMsg(transform_point_cloud(cloud_crop), cloud_msg);
+            cloud_msg.header.frame_id = header_frame_drone; 
             cloud_msg.header.stamp = this->now();
             crop_pub_->publish(cloud_msg); 
-            pcl::toROSMsg(*cloud_sor, cloud_msg);
+
+
+            pcl::toROSMsg(transform_point_cloud(cloud_sor), cloud_msg);
+            cloud_msg.header.frame_id = header_frame_drone; 
+            cloud_msg.header.stamp = this->now();
             sor_pub_->publish(cloud_msg);
-            pcl::toROSMsg(*cloud_voxel,cloud_msg);
+
+            pcl::toROSMsg(transform_point_cloud(cloud_voxel),cloud_msg);
+            cloud_msg.header.frame_id = header_frame_drone; 
+            cloud_msg.header.stamp = this->now();            
             voxel_pub_->publish(cloud_msg);
-            pcl::toROSMsg(*cloud_processed_inverted,cloud_msg);
+
+            pcl::toROSMsg(transform_point_cloud(cloud_processed_inverted),cloud_msg);
+            cloud_msg.header.frame_id = header_frame_drone; 
+            cloud_msg.header.stamp = this->now();
             plane_pub_->publish(cloud_msg);
         }
 
@@ -345,8 +366,8 @@ private:
         if (cluster) {
             RCLCPP_INFO(this->get_logger(), "Cluster found with %lu points", cluster->points.size());
             sensor_msgs::msg::PointCloud2 cluster_msg;
-            pcl::toROSMsg(*cluster, cluster_msg);
-            cluster_msg.header.frame_id = header_frame;
+            pcl::toROSMsg(transform_point_cloud(cluster), cluster_msg);
+            cluster_msg.header.frame_id = header_frame_drone;
             cluster_msg.header.stamp = this->now();
             cluster_pub_->publish(cluster_msg); 
         } else {
@@ -395,6 +416,76 @@ private:
             }
         }
         return nullptr;
+    }
+
+    geometry_msgs::msg::TransformStamped get_transform(std::string target_frame, std::string source_frame){
+        try {
+            // Lookup the transform from child_frame to parent_frame
+            geometry_msgs::msg::TransformStamped transform = tf_buffer_->lookupTransform(
+                target_frame, // i.e. world or drone frame
+                source_frame, // i.e. camera frame
+                rclcpp::Time(0) // latest transform
+            );
+
+            return transform;
+        }
+        catch (const tf2::TransformException &e) {
+            RCLCPP_ERROR(this->get_logger(), "Could not find transform: %s", e.what());
+            geometry_msgs::msg::TransformStamped transform = tf_buffer_->lookupTransform(
+                source_frame, 
+                source_frame, 
+                rclcpp::Time(0) // latest transform
+            );
+            return transform;
+        }
+    }
+
+    // Transform a point from the camera's point frame ("camera_depth_optical_frame") to the drone frame ("drone_frame") 
+    geometry_msgs::msg::PointStamped transform_point(geometry_msgs::msg::PointStamped msg){
+        // Lookup the transform from child_frame to parent_frame
+        geometry_msgs::msg::TransformStamped transform = get_transform(header_frame_drone, msg.header.frame_id);
+
+        // Transform the point from the child frame to the parent frame
+        geometry_msgs::msg::PointStamped transformed_point;
+        tf2::doTransform(msg, transformed_point, transform);
+
+        RCLCPP_DEBUG(this->get_logger(), "Transformed point: (%.2f, %.2f, %.2f)",
+                    transformed_point.point.x, transformed_point.point.y, transformed_point.point.z);
+
+        return transformed_point;
+    }
+
+    // Transform a point cloud from the camera's point frame ("camera_depth_optical_frame") to the drone frame ("drone_frame") 
+    pcl::PointCloud<pcl::PointXYZ> transform_point_cloud(const pcl::PointCloud<pcl::PointXYZ>::Ptr& input_cloud)
+    {
+        pcl::PointCloud<pcl::PointXYZ> output_cloud;
+
+        for (const auto& point : input_cloud->points){
+            geometry_msgs::msg::PointStamped point_in;
+            point_in.header.frame_id = header_frame;
+            point_in.header.stamp = rclcpp::Time(0);  // Use the latest time
+            point_in.point.x = point.x;
+            point_in.point.y = point.y;
+            point_in.point.z = point.z;
+
+            // Transform the point from child frame to parent frame
+            geometry_msgs::msg::PointStamped point_out = transform_point(point_in);
+
+            // Add the transformed point to the output cloud
+            pcl::PointXYZ pcl_point;
+            pcl_point.x = point_out.point.x;
+            pcl_point.y = point_out.point.y;
+            pcl_point.z = point_out.point.z;
+
+            output_cloud.points.push_back(pcl_point);
+        }
+
+        // Set the output cloud header and other properties
+        output_cloud.width = output_cloud.points.size();
+        output_cloud.height = 1;  // Assuming unorganized point cloud
+        output_cloud.is_dense = true;
+
+        return output_cloud;
     }
 };
 
