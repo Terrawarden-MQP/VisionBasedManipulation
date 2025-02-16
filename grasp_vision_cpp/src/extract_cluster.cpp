@@ -50,11 +50,11 @@ public:
     PointCloudClusterDetector() : Node("extract_cluster") {
         // ROS parameters
         this->declare_parameter<std::string>("pointcloud_topic", "/camera/camera/depth/color/points");
-        this->declare_parameter<std::string>("coord_topic", "/target_2d_coords");
+        this->declare_parameter<std::string>("coord_topic", "/joisie_vision/detected_object_centroid");
         this->declare_parameter<std::string>("cluster_topic", "/detected_cluster");
-        this->declare_parameter<std::string>("camera_info_topic_depth", "/camera/camera/depth/camera_info");
+        this->declare_parameter<std::string>("camera_info_topic_depth", "/camera/camera/aligned_depth_to_color/camera_info");
         this->declare_parameter<std::string>("camera_info_topic_color", "/camera/camera/color/camera_info");
-        this->declare_parameter<std::string>("camera_depth_topic", "/camera/camera/depth/image_rect_raw");
+        this->declare_parameter<std::string>("camera_depth_topic", "/camera/camera/aligned_depth_to_color/image_raw");
         this->declare_parameter<bool>("visualize", false);
         this->declare_parameter<double>("crop_radius", 0.2);
         this->declare_parameter<int>("sor_mean_k", 50);
@@ -62,7 +62,7 @@ public:
         this->declare_parameter<double>("voxel_leaf_size", 0.01);
         this->declare_parameter<int>("ransac_max_iterations", 1000);
         this->declare_parameter<double>("ransac_distance_threshold", 0.01);
-        this->declare_parameter<std::string>("header_frame","camera_depth_optical_frame");
+        this->declare_parameter<std::string>("header_frame","camera_color_optical_frame"); // TODO: get this directly from subscribed topic
         this->declare_parameter<std::string>("header_frame_drone","drone_frame");
         this->declare_parameter<double>("cluster_tolerance", 0.02);
         this->declare_parameter<int>("min_cluster_size", 100);
@@ -226,6 +226,7 @@ private:
         // Depth value
         float depth_scale = 0.001;  // Convert from mm to meters
         double depth_value = cv_ptr->image.at<uint16_t>(v,u) * depth_scale;
+        RCLCPP_DEBUG(this->get_logger(), "Depth %.3f with point (%d, %d)",depth_value, u, v);
         // double depth_value = get_average_depth(cv_ptr->image, u, v);
 
         // Retrieve the 3D point corresponding to the 2D coordinates

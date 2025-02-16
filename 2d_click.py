@@ -89,7 +89,8 @@ class ImageClicker(Node):
         )
         self.depth_image_sub = self.create_subscription(
             Image,
-            '/camera/camera/depth/image_rect_raw',  # Adjust topic if needed
+            # '/camera/camera/depth/image_rect_raw',  # Adjust topic if needed
+            '/camera/camera/aligned_depth_to_color/image_raw',
             self.depth_image_callback,
             10
         )
