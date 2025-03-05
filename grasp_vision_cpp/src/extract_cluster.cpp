@@ -52,7 +52,7 @@ public:
     PointCloudClusterDetector() : Node("extract_cluster") {
         // ROS parameters
         this->declare_parameter<std::string>("pointcloud_topic", "/camera/camera/depth/color/points");
-        this->declare_parameter<std::string>("coord_topic", "/joisie_vision/detected_object_centroid");
+        this->declare_parameter<std::string>("coord_topic", "/detected_object_centroid");
         this->declare_parameter<std::string>("cluster_topic", "/detected_cluster");
         this->declare_parameter<std::string>("centroid_topic","joisie_extract_centroid");
         this->declare_parameter<std::string>("camera_info_topic_depth", "/camera/camera/aligned_depth_to_color/camera_info");
@@ -394,7 +394,7 @@ private:
         if (cluster) {
             RCLCPP_INFO(this->get_logger(), "Cluster found with %lu points", cluster->points.size());
             // Trigger optimal_grasp node if state is grasping
-            if(state == "grasping"){
+            if(state == "NAV"){
                 sensor_msgs::msg::PointCloud2 cluster_msg;
                 pcl::toROSMsg(*cluster, cluster_msg);
                 cluster_msg.header.frame_id = header_frame_drone;
@@ -413,8 +413,16 @@ private:
             centroid_msg.point.z = centroid[2];
 
             centroid_pub_->publish(centroid_msg);
-        } else {
+        } else { // if no cluster, publish 2D->3D point as approximate target
             RCLCPP_INFO(this->get_logger(), "No cluster :/");
+            geometry_msgs::msg::PointStamped point_msg;
+            point_msg.header.frame_id = header_frame_drone;
+            point_msg.header.stamp.nanosec = 0;
+            point_msg.header.stamp.sec = 0;
+            point_msg.point.x = target_point.x;
+            point_msg.point.y = target_point.y;
+            point_msg.point.z = target_point.z;
+            centroid_pub_->publish(point_msg);
         }
     }
 
