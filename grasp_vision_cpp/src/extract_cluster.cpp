@@ -14,6 +14,7 @@ https://medium.com/@pacogarcia3/calculate-x-y-z-real-world-coordinates-from-imag
 */
 
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp/time.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
@@ -168,6 +169,7 @@ private:
     int image_width_depth_, image_height_depth_, image_width_color_, image_height_color_;
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+    rclcpp::Time timestamp;
 
     void state_callback(const std_msgs::msg::String::SharedPtr msg){
         state = msg->data;
@@ -190,6 +192,7 @@ private:
 
         if (pointcloud_data_ && depth_img_data_ && image_width_depth_ && image_width_color_) {
             auto t1 = std::chrono::high_resolution_clock::now();
+            timestamp = this->now();
             process_coordinates();
             auto t2 = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double,std::milli> elapsed = t2-t1;
@@ -263,8 +266,7 @@ private:
         // Transform 3D point to drone frame
         geometry_msgs::msg::PointStamped msg, msg_tf2;
         msg.header.frame_id = header_frame;
-        msg.header.stamp.nanosec = 0;
-        msg.header.stamp.sec = 0;
+        msg.header.stamp = timestamp;
         msg.point.x = x;
         msg.point.y = y;
         msg.point.z = depth_value;
@@ -369,23 +371,23 @@ private:
             sensor_msgs::msg::PointCloud2 cloud_msg;
             pcl::toROSMsg(*cloud_crop, cloud_msg);
             cloud_msg.header.frame_id = header_frame_drone; 
-            cloud_msg.header.stamp = this->now();
+            cloud_msg.header.stamp = timestamp;
             crop_pub_->publish(cloud_msg); 
 
 
             pcl::toROSMsg(*cloud_sor, cloud_msg);
             cloud_msg.header.frame_id = header_frame_drone; 
-            cloud_msg.header.stamp = this->now();
+            cloud_msg.header.stamp = timestamp;
             sor_pub_->publish(cloud_msg);
 
             pcl::toROSMsg(*cloud_voxel,cloud_msg);
             cloud_msg.header.frame_id = header_frame_drone; 
-            cloud_msg.header.stamp = this->now();            
+            cloud_msg.header.stamp = timestamp;            
             voxel_pub_->publish(cloud_msg);
 
             pcl::toROSMsg(*cloud_processed_inverted,cloud_msg);
             cloud_msg.header.frame_id = header_frame_drone; 
-            cloud_msg.header.stamp = this->now();
+            cloud_msg.header.stamp = timestamp;
             plane_pub_->publish(cloud_msg);
         }
 
@@ -398,7 +400,7 @@ private:
                 sensor_msgs::msg::PointCloud2 cluster_msg;
                 pcl::toROSMsg(*cluster, cluster_msg);
                 cluster_msg.header.frame_id = header_frame_drone;
-                cluster_msg.header.stamp = this->now();
+                cluster_msg.header.stamp = timestamp;
                 cluster_pub_->publish(cluster_msg); 
             }
             // Publish centroid regardless of state if this node was called
@@ -406,8 +408,7 @@ private:
             pcl::compute3DCentroid(*cluster, centroid);
             geometry_msgs::msg::PointStamped centroid_msg;
             centroid_msg.header.frame_id = header_frame_drone;
-            centroid_msg.header.stamp.nanosec = 0;
-            centroid_msg.header.stamp.sec = 0;
+            centroid_msg.header.stamp = timestamp;
             centroid_msg.point.x = centroid[0];
             centroid_msg.point.y = centroid[1];
             centroid_msg.point.z = centroid[2];
@@ -516,7 +517,7 @@ private:
         for (const auto& point : input_cloud->points){
             geometry_msgs::msg::PointStamped point_in;
             point_in.header.frame_id = header_frame_depth; 
-            point_in.header.stamp = rclcpp::Time(0);  // Use the latest time
+            point_in.header.stamp = timestamp;
             point_in.point.x = point.x;
             point_in.point.y = point.y;
             point_in.point.z = point.z;

@@ -1,4 +1,5 @@
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp/time.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <pcl/point_types.h>
 #include <pcl/features/normal_3d.h>
@@ -71,6 +72,7 @@ private:
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr grasp_marker_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr curvature_publisher_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_publisher_;
+    rclcpp::Time timestamp;
 
     void graspPlanningCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg)
     {
@@ -78,6 +80,7 @@ private:
 
         // Timer
         auto t1 = std::chrono::high_resolution_clock::now();
+        timestamp = cloud_msg->header.stamp;
 
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>());
         pcl::fromROSMsg(*cloud_msg, *cloud);
@@ -125,7 +128,7 @@ private:
             sensor_msgs::msg::PointCloud2 cloud_msg_;
             pcl::toROSMsg(*cluster_processed,cloud_msg_);
             cloud_msg_.header.frame_id = header_frame; 
-            cloud_msg_.header.stamp = this->now();
+            cloud_msg_.header.stamp = timestamp;
             curvature_publisher_->publish(cloud_msg_);
         }
 
@@ -195,7 +198,8 @@ private:
 
         // Fill PoseStamped message
         geometry_msgs::msg::PoseStamped grasp_pose_msg;
-        grasp_pose_msg.header = header;
+        grasp_pose_msg.header.frame_id = header.frame_id;
+        grasp_pose_msg.header.stamp = timestamp;
         grasp_pose_msg.pose.position.x = grasp_position.x();
         grasp_pose_msg.pose.position.y = grasp_position.y();
         grasp_pose_msg.pose.position.z = grasp_position.z();
@@ -427,7 +431,8 @@ private:
                              const std_msgs::msg::Header &header)
     {
         visualization_msgs::msg::Marker grasp_line_marker;
-        grasp_line_marker.header = header;
+        grasp_line_marker.header.frame_id = header.frame_id;
+        grasp_line_marker.header.stamp = timestamp;
         grasp_line_marker.ns = "optimal_grasp";
         grasp_line_marker.id = 0;
         grasp_line_marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
