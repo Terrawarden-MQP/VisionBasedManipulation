@@ -396,7 +396,7 @@ private:
         if (cluster) {
             RCLCPP_INFO(this->get_logger(), "Cluster found with %lu points", cluster->points.size());
             // Trigger optimal_grasp node if state is grasping
-            if(state == "NAV"){
+            if(state == "NAV"){ // TODO change to grasping state
                 sensor_msgs::msg::PointCloud2 cluster_msg;
                 pcl::toROSMsg(*cluster, cluster_msg);
                 cluster_msg.header.frame_id = header_frame_drone;
