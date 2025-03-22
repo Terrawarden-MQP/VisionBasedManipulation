@@ -29,3 +29,4 @@ Some of these can be for future years. These are not comprehsensive and not in a
 7) Change point cluster extractor node to rely on realsense code instead of PCL + ROS (see links in file)
 8) Consider making some PCL filters dynamic
 9) For flight, get rid of `vbm_project_env` and integrate `grasp.launch.py` with rest of code
+10) Document this: https://askubuntu.com/questions/165679/how-to-manage-available-wireless-network-priority
