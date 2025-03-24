@@ -1,0 +1,197 @@
+[INFO] [launch]: All log files can be found below /home/joisie/.ros/log/2025-03-20-12-46-51-031474-terra-50710
+[INFO] [launch]: Default logging verbosity is set to INFO
+[WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+[INFO] [realsense2_camera_node-2]: process started with pid [50716]
+[INFO] [shell_command-1]: process started with pid [50714]
+[ERROR] [shell_command-1]: process has died [pid 50714, exit code -2, cmd 'bash -c export ROS_LOCALHOST_ONLY=1'].
+[ERROR] [realsense2_camera_node-2]: process has died [pid 50716, exit code -2, cmd '/home/joisie/Desktop/realsense2_camera/install/realsense2_camera/lib/realsense2_camera/realsense2_camera_node --ros-args --log-level INFO --ros-args -r __node:=camera -r __ns:=/camera --params-file /tmp/launch_params_8xqqtbuz --params-file /tmp/launch_params_hyscoxs6'].
+[INFO] [vehicle_position_listener-4]: process started with pid [50720]
+[INFO] [color_detection-5]: process started with pid [50722]
+[INFO] [task_manager-6]: process started with pid [50725]
+[INFO] [extract_cluster-7]: process started with pid [50727]
+[INFO] [optimal_grasp-8]: process started with pid [50729]
+[INFO] [arm_node-9]: process started with pid [50731]
+[INFO] [static_transform_publisher-10]: process started with pid [50733]
+[static_transform_publisher-10] [INFO] [1742489211.569629312] [static_tf_pub]: Spinning until stopped - publishing transform
+[static_transform_publisher-10] translation: ('0.100000', '0.000000', '-0.160000')
+[static_transform_publisher-10] rotation: ('0.000000', '0.258819', '0.000000', '0.965926')
+[static_transform_publisher-10] from 'drone_frame' to 'camera_link'
+[optimal_grasp-8] [INFO] [1742489211.594459808] [optimal_grasp]: Starting Optimal Grasp Node...
+[task_manager-6] [INFO] [1742489212.488681312] [task_manager]: Debug Flags: Publish: True, Drone True, Detection True, VBM True, Arm True
+[task_manager-6] [INFO] [1742489212.511606016] [task_manager]: Task Manager initialized with 20Hz timer
+[task_manager-6] [INFO] [1742489212.562833888] [task_manager]: Topic - joisie_state	Message - std_msgs.msg.String(data='HOLD')
+[extract_cluster-7] [INFO] [1742489212.563573440] [extract_cluster]: Received State: 'HOLD'
+[task_manager-6] [INFO] [1742489212.564100160] [task_manager]: Topic - drone/waypoing	Message - terrawarden_interfaces.msg.DroneWaypoint(ned_pos=geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0), heading_degrees=0.0, max_lin_vel_m_s=0.1, max_z_vel_m_s=0.1, max_ang_vel_deg_s=20.0, max_lin_accel_m_s2=0.1)
+[task_manager-6] [INFO] [1742489212.564970368] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489212.612248736] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[vehicle_position_listener-4] [INFO] [1742489212.622321472] [vehicle_position_listener]: Waypoint received: terrawarden_interfaces.msg.DroneWaypoint(ned_pos=geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0), heading_degrees=0.0, max_lin_vel_m_s=0.1, max_z_vel_m_s=0.1, max_ang_vel_deg_s=20.0, max_lin_accel_m_s2=0.1)
+[vehicle_position_listener-4] [INFO] [1742489212.623886656] [vehicle_position_listener]: Trajectory setpoint: [0. 0. 0.]
+[task_manager-6] [INFO] [1742489212.662961888] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489212.712883648] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489212.763187456] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489212.812807008] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489212.862733568] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489212.913206080] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489212.963278400] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489213.013116416] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489213.063163872] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489213.113244832] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489213.163197376] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489213.213215904] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489213.262204736] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489213.312298176] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489213.362285472] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489213.412261248] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489213.462187616] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489213.512252064] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489213.562229664] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489213.612174816] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489213.662005888] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489213.712245728] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489213.762153856] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489213.812226336] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489213.862229568] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489213.912246016] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489213.962373984] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489214.012535264] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489214.062360064] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489214.112281280] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489214.162025312] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489214.212114176] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489214.261895648] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489214.312288960] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489214.362099872] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489214.412044960] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489214.462184128] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489214.512331040] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489214.562085312] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489214.612192800] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489214.662161024] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489214.712347552] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489214.762395168] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489214.812367392] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489214.862228960] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489214.913022368] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489214.962784960] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489215.012618624] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489215.062897472] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489215.113113504] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489215.162987264] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489215.212828832] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489215.262312224] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489215.312947360] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489215.362880480] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489215.413000160] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489215.462877216] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489215.513181504] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489215.562982624] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489215.612891040] [task_manager]: Topic - joisie_state	Message - std_msgs.msg.String(data='HOLD')
+[extract_cluster-7] [INFO] [1742489215.613607744] [extract_cluster]: Received State: 'HOLD'
+[task_manager-6] [INFO] [1742489215.614799808] [task_manager]: Topic - drone/waypoing	Message - terrawarden_interfaces.msg.DroneWaypoint(ned_pos=geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0), heading_degrees=0.0, max_lin_vel_m_s=0.1, max_z_vel_m_s=0.1, max_ang_vel_deg_s=20.0, max_lin_accel_m_s2=0.1)
+[task_manager-6] [INFO] [1742489215.616364064] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[vehicle_position_listener-4] [INFO] [1742489215.617712736] [vehicle_position_listener]: Waypoint received: terrawarden_interfaces.msg.DroneWaypoint(ned_pos=geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0), heading_degrees=0.0, max_lin_vel_m_s=0.1, max_z_vel_m_s=0.1, max_ang_vel_deg_s=20.0, max_lin_accel_m_s2=0.1)
+[vehicle_position_listener-4] [INFO] [1742489215.620111264] [vehicle_position_listener]: Trajectory setpoint: [0. 0. 0.]
+[task_manager-6] [INFO] [1742489215.663161728] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489215.713099968] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489215.762787808] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489215.813105152] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489215.863172800] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489215.913207232] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489215.963166848] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489216.012797920] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489216.062820960] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489216.113131968] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489216.163073280] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489216.213382432] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489216.262874464] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489216.312644224] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489216.363366400] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489216.413186880] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489216.463125184] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[task_manager-6] [INFO] [1742489216.513162496] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[ERROR] [vehicle_position_listener-4]: process[vehicle_position_listener-4] failed to terminate '5' seconds after receiving 'SIGINT', escalating to 'SIGTERM'
+[ERROR] [color_detection-5]: process[color_detection-5] failed to terminate '5' seconds after receiving 'SIGINT', escalating to 'SIGTERM'
+[ERROR] [task_manager-6]: process[task_manager-6] failed to terminate '5' seconds after receiving 'SIGINT', escalating to 'SIGTERM'
+[INFO] [vehicle_position_listener-4]: sending signal 'SIGTERM' to process[vehicle_position_listener-4]
+[ERROR] [extract_cluster-7]: process[extract_cluster-7] failed to terminate '5' seconds after receiving 'SIGINT', escalating to 'SIGTERM'
+[ERROR] [optimal_grasp-8]: process[optimal_grasp-8] failed to terminate '5' seconds after receiving 'SIGINT', escalating to 'SIGTERM'
+[ERROR] [arm_node-9]: process[arm_node-9] failed to terminate '5' seconds after receiving 'SIGINT', escalating to 'SIGTERM'
+[ERROR] [vehicle_position_listener-4]: process has died [pid 50720, exit code -15, cmd '/home/joisie/Desktop/ros_ws/install/wpi_drone/lib/wpi_drone/vehicle_position_listener --ros-args -r __node:=vehicle_position_listener --params-file /tmp/launch_params_x27bkc6o'].
+[INFO] [color_detection-5]: sending signal 'SIGTERM' to process[color_detection-5]
+[ERROR] [static_transform_publisher-10]: process[static_transform_publisher-10] failed to terminate '5' seconds after receiving 'SIGINT', escalating to 'SIGTERM'
+[INFO] [task_manager-6]: sending signal 'SIGTERM' to process[task_manager-6]
+[INFO] [extract_cluster-7]: sending signal 'SIGTERM' to process[extract_cluster-7]
+[INFO] [optimal_grasp-8]: sending signal 'SIGTERM' to process[optimal_grasp-8]
+[INFO] [arm_node-9]: sending signal 'SIGTERM' to process[arm_node-9]
+[task_manager-6] [INFO] [1742489216.562700160] [task_manager]: drone hovering @ geometry_msgs.msg.Point(x=0.0, y=0.0, z=0.0)
+[INFO] [static_transform_publisher-10]: sending signal 'SIGTERM' to process[static_transform_publisher-10]
+[extract_cluster-7] [INFO] [1742489216.604016544] [rclcpp]: signal_handler(signum=15)
+[color_detection-5] Traceback (most recent call last):
+[color_detection-5]   File "/home/joisie/Desktop/ros_ws/install/joisie_vision/lib/joisie_vision/color_detection", line 33, in <module>
+[color_detection-5]     sys.exit(load_entry_point('joisie-vision==0.0.0', 'console_scripts', 'color_detection')())
+[color_detection-5]   File "/home/joisie/Desktop/ros_ws/install/joisie_vision/lib/python3.10/site-packages/joisie_vision/color_detection.py", line 10, in main
+[color_detection-5]     rclpy.spin(color_detection_node)
+[color_detection-5]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/__init__.py", line 222, in spin
+[color_detection-5]     executor.spin_once()
+[color_detection-5]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 739, in spin_once
+[color_detection-5]     self._spin_once_impl(timeout_sec)
+[color_detection-5]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 728, in _spin_once_impl
+[color_detection-5]     handler, entity, node = self.wait_for_ready_callbacks(timeout_sec=timeout_sec)
+[color_detection-5]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 711, in wait_for_ready_callbacks
+[color_detection-5]     return next(self._cb_iter)
+[color_detection-5]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 612, in _wait_for_ready_callbacks
+[color_detection-5]     raise ExternalShutdownException()
+[color_detection-5] rclpy.executors.ExternalShutdownException
+[optimal_grasp-8] [INFO] [1742489216.609716512] [rclcpp]: signal_handler(signum=15)
+[static_transform_publisher-10] [INFO] [1742489216.621607968] [rclcpp]: signal_handler(signum=15)
+[task_manager-6] Traceback (most recent call last):
+[task_manager-6]   File "/home/joisie/Desktop/ros_ws/install/joisie_manager/lib/joisie_manager/task_manager", line 33, in <module>
+[task_manager-6]     sys.exit(load_entry_point('joisie-manager==0.0.0', 'console_scripts', 'task_manager')())
+[task_manager-6]   File "/home/joisie/Desktop/ros_ws/install/joisie_manager/lib/python3.10/site-packages/joisie_manager/taskmanager.py", line 837, in main
+[task_manager-6]     rclpy.spin(manager_node)
+[task_manager-6]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/__init__.py", line 222, in spin
+[task_manager-6]     executor.spin_once()
+[task_manager-6]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 739, in spin_once
+[task_manager-6]     self._spin_once_impl(timeout_sec)
+[task_manager-6]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 728, in _spin_once_impl
+[task_manager-6]     handler, entity, node = self.wait_for_ready_callbacks(timeout_sec=timeout_sec)
+[task_manager-6]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 711, in wait_for_ready_callbacks
+[task_manager-6]     return next(self._cb_iter)
+[task_manager-6]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 612, in _wait_for_ready_callbacks
+[task_manager-6]     raise ExternalShutdownException()
+[task_manager-6] rclpy.executors.ExternalShutdownException
+[arm_node-9] Traceback (most recent call last):
+[arm_node-9]   File "/home/joisie/Desktop/ros_ws/install/terrawarden_mansplain/lib/terrawarden_mansplain/arm_node", line 33, in <module>
+[arm_node-9]     sys.exit(load_entry_point('terrawarden-mansplain==0.0.0', 'console_scripts', 'arm_node')())
+[arm_node-9]   File "/home/joisie/Desktop/ros_ws/install/terrawarden_mansplain/lib/python3.10/site-packages/terrawarden_mansplain/RosArm.py", line 202, in main
+[arm_node-9]     rclpy.spin(node)
+[arm_node-9]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/__init__.py", line 222, in spin
+[arm_node-9]     executor.spin_once()
+[arm_node-9]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 739, in spin_once
+[arm_node-9]     self._spin_once_impl(timeout_sec)
+[arm_node-9]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 736, in _spin_once_impl
+[arm_node-9]     raise handler.exception()
+[arm_node-9]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/task.py", line 239, in __call__
+[arm_node-9]     self._handler.send(None)
+[arm_node-9]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 437, in handler
+[arm_node-9]     await call_coroutine(entity, arg)
+[arm_node-9]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 351, in _execute_timer
+[arm_node-9]     await await_or_execute(tmr.callback)
+[arm_node-9]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 107, in await_or_execute
+[arm_node-9]     return callback(*args)
+[arm_node-9]   File "/home/joisie/Desktop/ros_ws/install/terrawarden_mansplain/lib/python3.10/site-packages/terrawarden_mansplain/RosArm.py", line 118, in publish_status
+[arm_node-9]     self.status_publisher.publish(status_msg)
+[arm_node-9]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/publisher.py", line 70, in publish
+[arm_node-9]     self.__publisher.publish(msg)
+[arm_node-9] rclpy._rclpy_pybind11.RCLError: Failed to publish: publisher's context is invalid, at ./src/rcl/publisher.c:389
+[INFO] [optimal_grasp-8]: process has finished cleanly [pid 50729]
+[INFO] [static_transform_publisher-10]: process has finished cleanly [pid 50733]
+[INFO] [extract_cluster-7]: process has finished cleanly [pid 50727]
+[ERROR] [task_manager-6]: process has died [pid 50725, exit code 1, cmd '/home/joisie/Desktop/ros_ws/install/joisie_manager/lib/joisie_manager/task_manager --ros-args --params-file /tmp/launch_params_cinqh7iq'].
+[ERROR] [arm_node-9]: process has died [pid 50731, exit code 1, cmd '/home/joisie/Desktop/ros_ws/install/terrawarden_mansplain/lib/terrawarden_mansplain/arm_node --ros-args -r __node:=arm_node'].
+[ERROR] [color_detection-5]: process has died [pid 50722, exit code 1, cmd '/home/joisie/Desktop/ros_ws/install/joisie_vision/lib/joisie_vision/color_detection --ros-args --params-file /tmp/launch_params_3htl6kut'].
+[WARNING] [launch]: user interrupted with ctrl-c (SIGINT) again, ignoring...
+[WARNING] [launch]: user interrupted with ctrl-c (SIGINT) again, ignoring...
+[WARNING] [launch]: user interrupted with ctrl-c (SIGINT) again, ignoring...
+[WARNING] [launch]: user interrupted with ctrl-c (SIGINT) again, ignoring...
+[WARNING] [launch]: user interrupted with ctrl-c (SIGINT) again, ignoring...
