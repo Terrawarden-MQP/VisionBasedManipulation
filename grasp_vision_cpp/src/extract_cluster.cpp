@@ -175,7 +175,7 @@ private:
 
     void state_callback(const std_msgs::msg::String::SharedPtr msg){
         state = msg->data;
-        RCLCPP_INFO(this->get_logger(), "Received State: '%s'", state.c_str());
+        RCLCPP_DEBUG(this->get_logger(), "Received State: '%s'", state.c_str());
     }
 
     void pointcloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
@@ -198,7 +198,12 @@ private:
             process_coordinates();
             auto t2 = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double,std::milli> elapsed = t2-t1;
-            RCLCPP_INFO(this->get_logger(),"Cluster_time elapsed from receiving point: %f",elapsed.count());            
+            if(latest_2d_point_ != std::make_pair(0,0)){
+                RCLCPP_INFO(this->get_logger(),"Cluster_time elapsed from receiving point: %f",elapsed.count());
+            }
+            else{
+                RCLCPP_DEBUG(this->get_logger(),"Cluster_time elapsed from receiving point: %f",elapsed.count());
+            }
         } else {
             RCLCPP_WARN(this->get_logger(), "No point cloud or no depth image received yet or missing depth / color camera info");
         }
@@ -256,7 +261,13 @@ private:
         // Retrieve the 3D point corresponding to the 2D coordinates
         // Pinhole camera model
         if(depth_value < 0.15){ // check for erroneous results
-            RCLCPP_WARN(this->get_logger(), "Invalid depth %.3f with point (%d, %d)",depth_value, u, v);
+            if(u!=0 && v!=0){ // (0,0) prevent spamming logs when no object detected by 2D
+                RCLCPP_WARN(this->get_logger(), "Invalid depth %.3f with point (%d, %d)",depth_value, u, v);
+            }
+            else{
+                RCLCPP_DEBUG(this->get_logger(),"2D point received was (%d, %d)", u, v);
+            }
+            
             // Print the depth matrix
             // RCLCPP_DEBUG(this->get_logger(), "Depth image:\n%s", (std::ostringstream() << cv_ptr->image).str().c_str());
             return;
