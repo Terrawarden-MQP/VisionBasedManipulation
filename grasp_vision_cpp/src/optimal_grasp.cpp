@@ -100,7 +100,7 @@ private:
     // Grasp uncertainty variance neighbors to search
     double variance_threshold; 
     // Grasp uncertainty variance threshold
-    int variance_neighbors
+    int variance_neighbors;
     // Subscriptions --------------------------------------
     // Subscription for extracted object cluster point cloud data
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscription_;
