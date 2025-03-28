@@ -4,57 +4,66 @@
 #include <pcl/point_types.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl_conversions/pcl_conversions.h>
-// #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/filter.h>
 #include <pcl/search/kdtree.h>
-// #include <pcl/common/centroid.h>
 #include <pcl/common/eigen.h>
 #include <visualization_msgs/msg/marker.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <random>
-// #include <cmath>
 #include <sstream>
 #include <chrono>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 
+/**
+ * @class OptimalGraspNode
+ * @brief Vision pipeline to determine optimal grasp for a given point cloud object cluster
+ * 
+ * Subscribes to object cluster point cloud from extract cluster node and calculates the optimal
+ * grasp for it based on several different customizable grasping strategies.  
+ */
 class OptimalGraspNode : public rclcpp::Node
 {
 public:
     OptimalGraspNode() : Node("optimal_grasp")
     {
-        // ROS parameters
-        this->declare_parameter<std::string>("cluster_topic", "/detected_cluster");
-        this->declare_parameter<double>("normal_search_radius", 0.03);
+        // ==================================== ROS PARAMETERS ====================================
+        // Flag for debugging
+        this->declare_parameter<bool>("visualize", false);
         this->declare_parameter<bool>("robust_search", false);
+        VISUALIZE = this->get_parameter("visualize").as_bool();
+        robust_search = this->get_parameter("robust_search").as_bool();
+        // Topics
+        this->declare_parameter<std::string>("cluster_topic", "/detected_cluster");
+        this->declare_parameter<std::string>("pos_topic","grasp_pose");
+        cluster_topic = this->get_parameter("cluster_topic").as_string();
+        pos_topic = this->get_parameter("pos_topic").as_string();
+        // Header frame
+        this->declare_parameter<std::string>("header_frame","camera_link");
+        // PCL filters
+        this->declare_parameter<double>("normal_search_radius", 0.03);
         this->declare_parameter<double>("min_search_threshold", 0.02);
         this->declare_parameter<double>("max_search_threshold", 0.1);
-        this->declare_parameter<bool>("visualize", false);
-        this->declare_parameter<int>("select_stability_metric", 1);
         this->declare_parameter<double>("curvature", 0.01);
-        this->declare_parameter<std::string>("header_frame","camera_link");
         this->declare_parameter<int>("variance_neighbors", 10);
         this->declare_parameter<double>("variance_threshold", 0.2);
-        this->declare_parameter<std::string>("pos_topic","grasp_pose");
-
-        // Retrieve ROS parameters
-        cluster_topic = this->get_parameter("cluster_topic").as_string();
         normal_search_radius = this->get_parameter("normal_search_radius").as_double();
-        robust_search = this->get_parameter("robust_search").as_bool();
         min_search_threshold = this->get_parameter("min_search_threshold").as_double();
         max_search_threshold = this->get_parameter("max_search_threshold").as_double();
-        VISUALIZE = this->get_parameter("visualize").as_bool();
-        select_stability_metric = this->get_parameter("select_stability_metric").as_int();
         curvature = this->get_parameter("curvature").as_double();
         header_frame = this->get_parameter("header_frame").as_string();
         variance_neighbors = this->get_parameter("variance_neighbors").as_int();
         variance_threshold = this->get_parameter("variance_threshold").as_double();
-        pos_topic = this->get_parameter("pos_topic").as_string();
+        // Grasp stability metrics
+        this->declare_parameter<int>("select_stability_metric", 1);
+        select_stability_metric = this->get_parameter("select_stability_metric").as_int();
 
+        // =============================== PUBLISHERS + SUBSCRIBERS ===============================
         subscription_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
             cluster_topic, 10, // from extract_cluster
             std::bind(&OptimalGraspNode::graspPlanningCallback, this, std::placeholders::_1));
         pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(pos_topic, 10);
-
+        
+        // Visualization publishers enabled by parameter
         if(VISUALIZE){
             normal_marker_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/normal_markers", 10);
             grasp_marker_publisher_ = this->create_publisher<visualization_msgs::msg::Marker>("/grasp_markers", 10);
@@ -63,17 +72,59 @@ public:
     }
 
 private:
-    std::string cluster_topic, header_frame,  pos_topic;
-    double normal_search_radius, min_search_threshold, max_search_threshold, curvature, variance_threshold; 
-    bool robust_search, VISUALIZE;
-    int select_stability_metric, variance_neighbors;
+    // ==================================== DECLARE VARIABLES =====================================
+    // Topics ---------------------------------------------
+    // Topic for receiving extracted object cluster point cloud 
+    std::string cluster_topic;
+    // Topic for publishing optimal grasp pose
+    std::string pos_topic;
+    // Header frame identifier 
+    std::string header_frame;
+    // PCL Filters ----------------------------------------
+    // Normal search radius in m
+    double normal_search_radius;
+    // Minimum search threshold
+    double min_search_threshold;
+    // Maximum search threshold
+    double max_search_threshold;
+    // Curvature value for edge detection
+    double curvature;
+    // Debug flags ----------------------------------------
+    // Enable/disable robust optimal grasp search
+    bool robust_search;
+    // Enable/disable visualization
+    bool VISUALIZE;
+    // Grasp stability ------------------------------------
+    // Select grasp stability metric for ranking (see ROS arg)
+    int select_stability_metric;
+    // Grasp uncertainty variance neighbors to search
+    double variance_threshold; 
+    // Grasp uncertainty variance threshold
+    int variance_neighbors
+    // Subscriptions --------------------------------------
+    // Subscription for extracted object cluster point cloud data
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subscription_;
+    // Publishers -----------------------------------------
+    // Publisher for optimal grasp pose
+    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_publisher_;
+    // Publishers for visualization of enabled
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr normal_marker_publisher_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr grasp_marker_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr curvature_publisher_;
-    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_publisher_;
+    // Time -----------------------------------------------
+    // Stores the timestamp of the latest processed data
     rclcpp::Time timestamp;
+    // ================================== SUBSCRIPTION CALLBACKS ==================================
 
+    /**
+     * @brief Callback for recieving object cluster point clouds.alignas
+     * 
+     * Uses grasp stability metrics to attempt calculating the optimal grasp for a received 
+     * point cloud of the extracted object cluster, assuming two contact points. If one is generated, 
+     * it publishes the optimal grasp as a PoseStamped. 
+     * 
+     * @param msg Shared pointer to the received point cloud message. 
+     */
     void graspPlanningCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg)
     {
         RCLCPP_INFO(this->get_logger(), "Received point cloud!");
@@ -102,9 +153,6 @@ private:
         pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>());
         ne.setRadiusSearch(normal_search_radius);
         ne.compute(*cloud_normals);
-        // if(VISUALIZE){
-        //     publishNormalMarkers(cloud, cloud_normals,cloud_msg->header);
-        // }
 
         if (cloud_normals->points.empty()) {
             RCLCPP_WARN(this->get_logger(), "No normals were computed!");
@@ -163,6 +211,13 @@ private:
 
     }
 
+    /**
+     * @brief Given two contact points, publish grasp PoseStamped. 
+     * 
+     * @param grasp_point1 contact point 1 of the grasp
+     * @param grasp_point2 contact point 2 of the grasp
+     * @param header the header frame to publish to in the message
+     */
     void publishGraspPose(
         const geometry_msgs::msg::Point& grasp_point1, 
         const geometry_msgs::msg::Point& grasp_point2, 
@@ -212,10 +267,15 @@ private:
         pose_publisher_->publish(grasp_pose_msg);
     }
 
-    // ============================= GRASP MATRIX =============================
-    // Based on RBE 595 VBM F24 HW 3
+    // ======================================= GRASP MATRIX =======================================
+    // Based on RBE 595 VBM F24 HW 3 (based on DOI 10.1007/s10514-014-9402-3)
     
-    // Helper function to calculate skew-symmetric matrix
+    /**
+     * @brief Calculates skew-symetric matrix
+     * 
+     * @param vec the vector to calculate the skew matrix
+     * @return the skew-symetric matrix
+     */
     Eigen::Matrix3d skew(const Eigen::Vector3d& vec) {
         Eigen::Matrix3d skewMat;
         skewMat <<  0,        -vec.z(),  vec.y(),
@@ -224,22 +284,19 @@ private:
         return skewMat;
     }
 
-    // Helper function to compute rotation matrix from surface normal
+    /**
+     * @brief Calculates rotation matrix from a surface normal
+     * 
+     * @param normal the surface normal 
+     * @return the rotation matrix
+     */
     Eigen::Matrix3d rotationMatrix(const Eigen::Vector3d& normal) {
         Eigen::Vector3d z = normal.normalized(); // Surface normal as z-axis
         Eigen::Vector3d x, y;
 
         // Choose an arbitrary "up" vector that is not collinear with z (Gram-Schmidt orthonormalization)
         Eigen::Vector3d up = (std::abs(z.z()) > 0.9) ? Eigen::Vector3d(1, 0, 0) : Eigen::Vector3d(0, 0, 1);
-
-
-        // Orthogonal x-axis (avoid collinearity)
-        // if (std::abs(z.x()) > std::abs(z.y()))
-        //     x = Eigen::Vector3d(-z.z(), 0, z.x()).normalized();
-        // else
-        //     x = Eigen::Vector3d(0, z.z(), -z.y()).normalized();
         x = up.cross(z).normalized();
-
         y = z.cross(x); // Cross product y-axis
 
         Eigen::Matrix3d R; // Rotation matrix
@@ -250,6 +307,13 @@ private:
     }
 
     // Helper function to calculate the grasp P matrix
+    /**
+     * @brief Calculates the grasp P matrix given N contact points and a 3D centroid
+     * 
+     * @param contact_points a matrix of N contact points (as rows)
+     * @param centroid the 3D centroid
+     * @return the grasp P matrix
+     */
     Eigen::MatrixXd calcGraspPMatrix(const Eigen::MatrixXd& contact_points, const Eigen::Vector3d& centroid) {
         int N = contact_points.rows(); // Number of contact points
         Eigen::MatrixXd P = Eigen::MatrixXd::Zero(6 * N, 6); // Initialize P matrix
@@ -269,7 +333,13 @@ private:
         return P;
     }
 
-    // Helper function to calculate the grasp matrix for N contact points
+    /**
+     * @brief Calculates the grasp matrix given N contact points and a 3D centroid
+     * 
+     * @param contact_points a matrix of N contact points (as rows)
+     * @param centroid the 3D centroid
+     * @return the grasp matrix
+     */
     Eigen::MatrixXd calcGraspMatrix(const Eigen::MatrixXd& contact_points, const Eigen::MatrixXd& normals, const Eigen::Vector3d& centroid) {
         int N = contact_points.rows(); // Number of contact points
         Eigen::MatrixXd G = Eigen::MatrixXd::Zero(6, 6 * N); // Initialize G matrix
@@ -291,6 +361,15 @@ private:
         return G;
     }
 
+    /**
+     * @brief Ranks grasp quality at different points using selected grasp quality metric (from ROS arg `select_stability_metric`)
+     * 
+     * @param cloud the object cluster's point cloud 
+     * @param normals the surface normals of the point cloud
+     * @param point1 variable to retrieve optimal contact point 1
+     * @param point2 varaible to retrieve optimal contact point 2
+     * @return whether an optimal grasp could be extracted 
+     */
     bool findOptimalGraspPointsQuality(
         const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud,
         const pcl::PointCloud<pcl::Normal>::Ptr &normals,
@@ -398,8 +477,16 @@ private:
         return true;
     }
 
-    // Helper function to handle uncertainty in grasp selection (robust grasp)
-    // Weights grasp selection based on normal deviation (variance) over neighboring points
+    /**
+     * @brief Calculate uncertainty in grasp selection (robust grasp) at a given point
+     * 
+     * Weights grasp selection based on normal deviation (variance) over neighboring points
+     * @param cloud the object cluster's point cloud
+     * @param normals the surface normals of the point cloud
+     * @param idx index of the selected point in the point cloud
+     * @param k_neighbors how many neighboring points to check
+     * @return normal variance
+     */
     double computeNormalVariance(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud,const pcl::PointCloud<pcl::Normal>::Ptr &normals, int idx, int k_neighbors){
         pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
         tree->setInputCloud(cloud);
@@ -424,8 +511,15 @@ private:
         return variance / k_neighbors;
     }
 
-    // ============================= VISUALIZE IN RVIZ =============================
+    // ==================================== VISUALIZE IN RVIZ =====================================
 
+    /**
+     * @brief Publish grasp markers for visualization if enabled
+     * 
+     * @param point1 contact point 1 of grasp
+     * @param point2 contact point 2 of grasp
+     * @param header the header frame to publish to in the message
+     */
     void publishGraspMarkers(const geometry_msgs::msg::Point &point1,
                              const geometry_msgs::msg::Point &point2,
                              const std_msgs::msg::Header &header)
@@ -453,6 +547,13 @@ private:
         RCLCPP_DEBUG(this->get_logger(), "Published grasp markers.");
     }
 
+    /**
+     * @brief Publish surface normal markers for visualization if enabled
+     * 
+     * @param cloud the object cluster point cloud
+     * @param normals the surface normals 
+     * @param header the header frame to publish to in the message
+     */
     void publishNormalMarkers(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud,
                               const pcl::PointCloud<pcl::Normal>::Ptr &normals,
                               const std_msgs::msg::Header &header)
